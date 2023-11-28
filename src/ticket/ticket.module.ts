@@ -4,7 +4,7 @@ import { TicketService } from './ticket.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Ticket, TicketSchema } from 'src/schema/ticket.schema';
 import { Client, ClientSchema } from 'src/schema/client.schema';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { CloudinaryProvider } from 'src/helpers/cloudinary.config';
 
 
@@ -19,7 +19,8 @@ import { CloudinaryProvider } from 'src/helpers/cloudinary.config';
   controllers: [TicketController],
   providers: [
     TicketService,
-    CloudinaryProvider
+    CloudinaryProvider,
+    Map
   ]
 })
 export class TicketModule { }
