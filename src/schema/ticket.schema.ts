@@ -1,18 +1,26 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { Client } from './client.schema';
+import { Voucher } from './voucher.schema';
 
 @Schema()
 export class Ticket extends Document {
-  @Prop({ required: true })
-  ticketUrl: string;
+  @Prop({ type: Types.ObjectId, ref: 'Client', required: true })
+  client: Client;
 
-  @Prop({ default: false })
+  @Prop({ type: Types.ObjectId, ref: 'Voucher', required: true })
+  voucher: Voucher;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ required: true })
   used: boolean;
 
-  @Prop({ default: false })
+  @Prop({ required: true })
   active: boolean;
 
-  @Prop({ default: false })
+  @Prop({ required: true })
   sent: boolean;
 }
 

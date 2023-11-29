@@ -21,7 +21,7 @@ export class CloudinaryInterceptor implements NestInterceptor {
           resolve(result);
         }).end(buffer);
       });
-      
+
       request.body.cloudinaryUrl = result?.url;
     }
 
