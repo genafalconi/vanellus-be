@@ -113,7 +113,7 @@ export class TicketService {
       name: prevent.name,
       price: prevent.price,
       active: prevent.active
-    })
+    });
     return await this.preventModel.create(preventCreated)
   }
 
