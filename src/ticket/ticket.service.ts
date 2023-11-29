@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Inject, Injectable, Req, UploadedFile } from
 import { diskStorage } from 'multer';
 import { tickets } from 'src/data/qrticket';
 import { TicketDto } from 'src/data/ticket.dto';
+import { v2 as cloudinary } from 'cloudinary';
 import * as qrcode from 'qrcode';
 import { ClientDataDto, BuyTicketsDataDto, PreventDataDto } from 'src/data/client.dto';
 import { Ticket } from 'src/schema/ticket.schema';
@@ -25,7 +26,7 @@ export class TicketService {
     private readonly voucherModel: Model<Voucher>,
   ) { }
 
-  async createTicket(ticketsData: BuyTicketsDataDto): Promise<any> {
+  async createTicket(ticketsData: BuyTicketsDataDto, cloudinaryUrl: string): Promise<any> {
     const clientSaved: Array<Client> = []
     const parsedClients: Array<ClientDataDto> = JSON.parse(ticketsData.clients)
 
@@ -43,10 +44,25 @@ export class TicketService {
       email: ticketsData.email,
       prevent: new Types.ObjectId(ticketsData.prevent),
       total: ticketsData.total,
-      url: ticketsData.cloudinaryUrl,
+      url: cloudinaryUrl,
       active: true
     })
     return await this.voucherModel.create(newComprobante)
+  }
+
+  async saveFileCloudinary(comprobante: Express.Multer.File) {
+    const { buffer } = comprobante;
+
+    const result: any = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream({ resource_type: 'auto', folder: 'Vanellus' }, async (error, result) => {
+        if (error) {
+          reject(error);
+        }
+        resolve(result);
+      }).end(buffer);
+    });
+
+    return result?.url;
   }
 
   async getTickets(prevent: string) {
