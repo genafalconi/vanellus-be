@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Inject, Post, Query, Req, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { BuyTicketsDataDto, PreventDataDto } from 'src/data/client.dto';
-import { CloudinaryFileInterceptor, CloudinaryInterceptor } from 'src/helpers/cloudinary.interceptor';
 import { Client } from 'src/schema/client.schema';
 import { CustomRequest } from 'src/firebase/customRequest';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { Ticket } from 'src/schema/ticket.schema';
 import { Prevent } from 'src/schema/prevent.schema';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('ticket')
 export class TicketController {
@@ -16,9 +16,10 @@ export class TicketController {
   ) { }
 
   @Post('/create')
-  @UseInterceptors(CloudinaryFileInterceptor, CloudinaryInterceptor)
-  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto): Promise<Array<Client>> {
-    return await this.ticketService.createTicket(ticketsBuy);
+  @UseInterceptors(FileInterceptor('comprobante'))
+  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto, @UploadedFile() comprobante: Express.Multer.File): Promise<Array<Client>> {
+    const fileUrl = await this.ticketService.saveFileCloudinary(comprobante)
+    return await this.ticketService.createTicket(ticketsBuy, fileUrl);
   }
 
   @UseGuards(FirebaseAuthGuard)
