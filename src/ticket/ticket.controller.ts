@@ -33,10 +33,12 @@ export class TicketController {
   }
 
   @Post('/comprobante')
-  async uploadComprobante(@Req() request: Request): Promise<string> {
-    const file = await this.parseFileFromRequest(request)
-    console.log(file)
-    return await this.ticketService.saveFileCloudinary(file['comprobante'])
+  @UseInterceptors(FileInterceptor('comprobante'))
+  async uploadComprobante(@Req() request: Request, @UploadedFile() comprobante: Express.Multer.File, @Body() data: any): Promise<string> {
+    // const file = await this.parseFileFromRequest(request)
+    // console.log(file)
+    console.log(comprobante, data)
+    return await this.ticketService.saveFileCloudinary(comprobante)
   }
 
   async parseFileFromRequest(request: Request): Promise<Express.Multer.File> {
