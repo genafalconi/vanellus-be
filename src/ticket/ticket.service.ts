@@ -29,7 +29,7 @@ export class TicketService {
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<any> {
     const clientSaved: Array<Client> = []
     const parsedClients: Array<ClientDataDto> = JSON.parse(ticketsData.clients)
-
+    
     for (let cli of parsedClients) {
       const newClient = new this.clientModel({
         fullName: cli.fullName,
