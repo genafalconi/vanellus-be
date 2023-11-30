@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Inject, ParseFilePipeBuilder, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { BuyTicketsDataDto, PreventDataDto } from 'src/data/client.dto';
 import { Client } from 'src/schema/client.schema';
@@ -7,6 +7,8 @@ import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { Ticket } from 'src/schema/ticket.schema';
 import { Prevent } from 'src/schema/prevent.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+const MAX_FILE_SIZE_IN_BYTES = 3 * 1024 * 1024; // 3 MB
 
 @Controller('ticket')
 export class TicketController {
@@ -17,7 +19,14 @@ export class TicketController {
 
   @Post('/create')
   @UseInterceptors(FileInterceptor('comprobante'))
-  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto, @UploadedFile() comprobante: Express.Multer.File): Promise<Array<Client>> {
+  async createTicket(
+    @Body() ticketsBuy: BuyTicketsDataDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: MAX_FILE_SIZE_IN_BYTES })
+        .build({ errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY }),
+    ) comprobante: Express.Multer.File
+  ): Promise<Array<Client>> {
     const fileUrl = await this.ticketService.saveFileCloudinary(comprobante)
     return await this.ticketService.createTicket(ticketsBuy, fileUrl);
   }
