@@ -49,7 +49,7 @@ export class TicketController {
         req.socket.setTimeout(30000);
       });
 
-      busboy.on('file', (fieldname, fileStream, filename, encoding, mimeType) => {
+      busboy.once('file', (fieldname, fileStream, filename, encoding, mimeType) => {
         const chunks: Buffer[] = [];
 
         fileStream.on('data', (data) => {
@@ -69,7 +69,11 @@ export class TicketController {
         });
       });
 
-      busboy.on('finish', () => {
+      busboy.once('finish', () => {
+        resolve(file)
+      });
+
+      busboy.once('close', () => {
         resolve(file)
       });
 
