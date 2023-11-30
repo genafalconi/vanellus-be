@@ -4,9 +4,8 @@ export class ClientDataDto {
 }
 
 export class BuyTicketsDataDto {
-  id: number;
   email: string;
-  clients: string;
+  clients: Array<ClientDataDto>;
   cloudinaryUrl: string;
   prevent: string;
   total: number;

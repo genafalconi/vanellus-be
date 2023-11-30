@@ -28,7 +28,7 @@ export class TicketService {
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<any> {
     const clientSaved: Array<Client> = []
-    const parsedClients: Array<ClientDataDto> = JSON.parse(ticketsData.clients)
+    const parsedClients: Array<ClientDataDto> = ticketsData.clients
 
     for (let cli of parsedClients) {
       const newClient = new this.clientModel({
@@ -50,8 +50,9 @@ export class TicketService {
     return await this.voucherModel.create(newComprobante)
   }
 
-  async saveFileCloudinary(comprobante: any) {
-    // const { buffer } = comprobante;
+  async saveFileCloudinary(comprobante: Express.Multer.File): Promise<string> {
+    console.log(comprobante)
+    const { buffer } = comprobante;
 
     const result: any = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream({ resource_type: 'auto', folder: 'Vanellus' }, async (error, result) => {
@@ -59,7 +60,7 @@ export class TicketService {
           reject(error);
         }
         resolve(result);
-      }).end(comprobante);
+      }).end(buffer);
     });
 
     return result?.url;
