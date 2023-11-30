@@ -11,6 +11,7 @@ const createFunction = async (expressInstance: any): Promise<void> => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
+  app.enableCors();
   await app.init();
 };
 
