@@ -6,8 +6,9 @@ import { CustomRequest } from 'src/firebase/customRequest';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { Ticket } from 'src/schema/ticket.schema';
 import { Prevent } from 'src/schema/prevent.schema';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from 'src/helpers/cloudinary.service';
+import * as Busboy from 'busboy';
+import { Request } from 'express';
 
 const MAX_FILE_SIZE_IN_BYTES = 3 * 1024 * 1024; // 3 MB
 
@@ -21,13 +22,55 @@ export class TicketController {
   ) { }
 
   @Post('/create')
-  @UseInterceptors(FileInterceptor('comprobante'))
-  async createTicket(
-    @Body() ticketsBuy: BuyTicketsDataDto,
-    @UploadedFile() comprobante: Express.Multer.File
-  ): Promise<Array<Client>> {
-    const url = await this.cloudinaryService.uploadFile(comprobante);
-    return await this.ticketService.createTicket({...ticketsBuy, cloudinaryUrl: url});
+  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto, @Req() request: Request): Promise<Array<Client>> {
+    try {
+      const { file, fields } = await this.parseFileFromRequest(request);
+      const imgUrl = await this.ticketService.saveFileCloudinary(file.comprobante)
+
+      return await this.ticketService.createTicket({ ...fields, cloudinaryUrl: imgUrl });
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      throw { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' };
+    }
+  }
+
+  async parseFileFromRequest(request: Request): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const busboy = Busboy({ headers: request.headers });
+
+      const fields: any = {};
+      const file: any = {};
+
+      busboy.on('file', (fieldname, fileStream, filename, encoding, mimeType) => {
+        const chunks: Buffer[] = [];
+
+        fileStream.on('data', (data) => {
+          chunks.push(data);
+        });
+
+        fileStream.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          file[fieldname] = {
+            fieldname,
+            originalname: filename,
+            encoding,
+            mimetype: mimeType,
+            buffer,
+            size: buffer.length,
+          };
+        });
+      });
+
+      busboy.on('field', (fieldname, val) => {
+        fields[fieldname] = val;
+      });
+
+      busboy.on('finish', () => {
+        resolve({ file, fields });
+      });
+
+      request.pipe(busboy);
+    });
   }
 
   @UseGuards(FirebaseAuthGuard)
