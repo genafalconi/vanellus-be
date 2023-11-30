@@ -53,11 +53,13 @@ export class TicketController {
 
       busboy.on('field', (fieldname, val) => {
         fields[fieldname] = val;
+        if(fieldname === '__end') {
+          resolve({ fields });
+        }
       });
 
       busboy.on('finish', () => {
         if (fields['__end'] === 'true') {
-          resolve({ fields });
           console.log('Form data complete');
         } else {
           console.log('Form data still being sent');
