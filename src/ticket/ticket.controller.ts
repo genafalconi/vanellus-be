@@ -66,6 +66,7 @@ export class TicketController {
             buffer,
             size: buffer.length,
           };
+          resolve(file)
         });
       });
 
