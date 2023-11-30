@@ -9,7 +9,6 @@ async function bootstrap() {
   app.enableCors();
   // Para poder subir imgs
   app.use(bodyParser.urlencoded({ extended: true }));
-  app.use(bodyParser.text({ type: '/' })); 
   const storage = multer.memoryStorage();
   const upload = multer({ storage: storage });
   app.use(upload.any());
