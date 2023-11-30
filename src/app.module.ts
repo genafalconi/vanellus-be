@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TicketModule } from './ticket/ticket.module';
-import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
@@ -9,7 +8,6 @@ import { MongooseModule } from '@nestjs/mongoose';
     ConfigModule.forRoot({
       envFilePath: `.env`,
     }),
-    MulterModule.register(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({
