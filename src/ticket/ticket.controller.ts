@@ -33,34 +33,44 @@ export class TicketController {
   }
 
   @Post('/comprobante')
-  @UseInterceptors(FileInterceptor('comprobante'))
-  async uploadComprobante(@UploadedFile() comprobante: Express.Multer.File): Promise<string> {
-    return await this.ticketService.saveFileCloudinary(comprobante)
+  async uploadComprobante(@Req() request: Request): Promise<string> {
+    const file = await this.parseFileFromRequest(request)
+    console.log(file)
+    return await this.ticketService.saveFileCloudinary(file['comprobante'])
   }
 
-  async parseFileFromRequest(request: Request): Promise<any> {
+  async parseFileFromRequest(request: Request): Promise<Express.Multer.File> {
     return new Promise((resolve, reject) => {
       const busboy = Busboy({ headers: request.headers, highWaterMark: 2 * 1024 * 1024 });
 
-      const fields: any = {};
+      const file: any = {};
 
       busboy.on('request', (req, res, opts) => {
-        req.socket.setTimeout(10000);
+        req.socket.setTimeout(30000);
       });
 
-      busboy.on('field', (fieldname, val) => {
-        fields[fieldname] = val;
-        if (fieldname === '__end') {
-          resolve({ fields });
-        }
+      busboy.on('file', (fieldname, fileStream, filename, encoding, mimeType) => {
+        const chunks: Buffer[] = [];
+
+        fileStream.on('data', (data) => {
+          chunks.push(data);
+        });
+
+        fileStream.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          file[fieldname] = {
+            fieldname,
+            originalname: filename,
+            encoding,
+            mimetype: mimeType,
+            buffer,
+            size: buffer.length,
+          };
+        });
       });
 
       busboy.on('finish', () => {
-        if (fields['__end'] === 'true') {
-          console.log('Form data complete');
-        } else {
-          console.log('Form data still being sent');
-        }
+        resolve(file)
       });
 
       request.pipe(busboy);
