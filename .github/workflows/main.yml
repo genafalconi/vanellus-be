@@ -1,4 +1,4 @@
-name: Deploy to Firebase Function via GitHub Action
+name: Deploy to Firebase Function via GitHub Actions
 
 on:
   push:
