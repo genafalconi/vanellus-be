@@ -9,9 +9,7 @@ import { MongooseModule } from '@nestjs/mongoose';
     ConfigModule.forRoot({
       envFilePath: `.env`,
     }),
-    MulterModule.register({
-      dest: './uploads',
-    }),
+    MulterModule.register(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({
