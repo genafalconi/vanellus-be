@@ -51,7 +51,6 @@ export class TicketService {
   }
 
   async saveFileCloudinary(comprobante: Express.Multer.File): Promise<string> {
-    console.log(comprobante)
     const { buffer } = comprobante;
 
     const result: any = await new Promise((resolve, reject) => {
