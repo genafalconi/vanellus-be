@@ -26,6 +26,7 @@ export class TicketController {
     try {
       // const { file, fields } = await this.parseFileFromRequest(request);
       const comprobante = request.file
+      console.log(comprobante, ticketsBuy)
       const imgUrl = await this.ticketService.saveFileCloudinary(comprobante)
 
       return await this.ticketService.createTicket({ ...ticketsBuy, cloudinaryUrl: imgUrl });
