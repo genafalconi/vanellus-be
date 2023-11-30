@@ -24,10 +24,11 @@ export class TicketController {
   @Post('/create')
   async createTicket(@Body() ticketsBuy: BuyTicketsDataDto, @Req() request: Request): Promise<Array<Client>> {
     try {
-      const { file, fields } = await this.parseFileFromRequest(request);
-      const imgUrl = await this.ticketService.saveFileCloudinary(file.comprobante)
+      // const { file, fields } = await this.parseFileFromRequest(request);
+      const comprobante = request.file
+      const imgUrl = await this.ticketService.saveFileCloudinary(comprobante)
 
-      return await this.ticketService.createTicket({ ...fields, cloudinaryUrl: imgUrl });
+      return await this.ticketService.createTicket({ ...ticketsBuy, cloudinaryUrl: imgUrl });
     } catch (error) {
       console.error('Error creating ticket:', error);
       throw { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' };
