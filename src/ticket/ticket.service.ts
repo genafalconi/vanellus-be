@@ -52,6 +52,7 @@ export class TicketService {
 
   async saveFileCloudinary(comprobante: Express.Multer.File): Promise<string> {
     const { buffer } = comprobante;
+    const bufferData = Buffer.from(buffer)
 
     const result: any = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream({ resource_type: 'auto', folder: 'Vanellus' }, async (error, result) => {
@@ -59,7 +60,7 @@ export class TicketService {
           reject(error);
         }
         resolve(result);
-      }).end(buffer);
+      }).end(bufferData);
     });
 
     return result?.url;

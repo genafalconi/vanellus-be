@@ -33,56 +33,52 @@ export class TicketController {
   }
 
   @Post('/comprobante')
-  @UseInterceptors(FileInterceptor('comprobante'))
-  async uploadComprobante(@Req() request: Request, @UploadedFile() comprobante: Express.Multer.File, @Body() data: any): Promise<string> {
-    // const file = await this.parseFileFromRequest(request)
-    // console.log(file)
-    console.log(comprobante, data)
-    return await this.ticketService.saveFileCloudinary(comprobante)
+  async uploadComprobante(@Req() request: Request): Promise<string> {
+    return await this.ticketService.saveFileCloudinary(request.body)
   }
 
-  async parseFileFromRequest(request: Request): Promise<Express.Multer.File> {
-    return new Promise((resolve, reject) => {
-      const busboy = Busboy({ headers: request.headers, highWaterMark: 2 * 1024 * 1024 });
+  // async parseFileFromRequest(request: Request): Promise<Express.Multer.File> {
+  //   return new Promise((resolve, reject) => {
+  //     const busboy = Busboy({ headers: request.headers, highWaterMark: 2 * 1024 * 1024 });
 
-      const file: any = {};
+  //     const file: any = {};
 
-      busboy.on('request', (req, res, opts) => {
-        req.socket.setTimeout(30000);
-      });
+  //     busboy.on('request', (req, res, opts) => {
+  //       req.socket.setTimeout(30000);
+  //     });
 
-      busboy.once('file', (fieldname, fileStream, filename, encoding, mimeType) => {
-        const chunks: Buffer[] = [];
+  //     busboy.once('file', (fieldname, fileStream, filename, encoding, mimeType) => {
+  //       const chunks: Buffer[] = [];
 
-        fileStream.on('data', (data) => {
-          chunks.push(data);
-        });
+  //       fileStream.on('data', (data) => {
+  //         chunks.push(data);
+  //       });
 
-        fileStream.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          file[fieldname] = {
-            fieldname,
-            originalname: filename,
-            encoding,
-            mimetype: mimeType,
-            buffer,
-            size: buffer.length,
-          };
-          resolve(file)
-        });
-      });
+  //       fileStream.on('end', () => {
+  //         const buffer = Buffer.concat(chunks);
+  //         file[fieldname] = {
+  //           fieldname,
+  //           originalname: filename,
+  //           encoding,
+  //           mimetype: mimeType,
+  //           buffer,
+  //           size: buffer.length,
+  //         };
+  //         resolve(file)
+  //       });
+  //     });
 
-      busboy.once('finish', () => {
-        resolve(file)
-      });
+  //     busboy.once('finish', () => {
+  //       resolve(file)
+  //     });
 
-      busboy.once('close', () => {
-        resolve(file)
-      });
+  //     busboy.once('close', () => {
+  //       resolve(file)
+  //     });
 
-      request.pipe(busboy);
-    });
-  }
+  //     request.pipe(busboy);
+  //   });
+  // }
 
   @UseGuards(FirebaseAuthGuard)
   @Get('/')
