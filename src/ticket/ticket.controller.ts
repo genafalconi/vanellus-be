@@ -36,10 +36,14 @@ export class TicketController {
 
   async parseFileFromRequest(request: Request): Promise<any> {
     return new Promise((resolve, reject) => {
-      const busboy = Busboy({ headers: request.headers });
+      const busboy = Busboy({ headers: request.headers, highWaterMark: 2 * 1024 * 1024 });
 
       const fields: any = {};
       const file: any = {};
+
+      busboy.on('request', (req, res, opts) => {
+        req.socket.setTimeout(10000);
+      });
 
       busboy.on('file', (fieldname, fileStream, filename, encoding, mimeType) => {
         const chunks: Buffer[] = [];
@@ -66,7 +70,12 @@ export class TicketController {
       });
 
       busboy.on('finish', () => {
-        resolve({ file, fields });
+        if (fields['__end'] === 'true') {
+          resolve({ file, fields });
+          console.log('Form data complete');
+        } else {
+          console.log('Form data still being sent');
+        }
       });
 
       request.pipe(busboy);
