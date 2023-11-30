@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CloudinaryProvider } from 'src/helpers/cloudinary.config';
 import { Voucher, VoucherSchema } from 'src/schema/voucher.schema';
 import { Prevent, PreventSchema } from 'src/schema/prevent.schema';
+import { CloudinaryService } from 'src/helpers/cloudinary.service';
 
 
 @Module({
@@ -24,7 +25,7 @@ import { Prevent, PreventSchema } from 'src/schema/prevent.schema';
   providers: [
     TicketService,
     CloudinaryProvider,
-    Map
+    CloudinaryService
   ]
 })
 export class TicketModule { }

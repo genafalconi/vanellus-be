@@ -26,7 +26,7 @@ export class TicketService {
     private readonly voucherModel: Model<Voucher>,
   ) { }
 
-  async createTicket(ticketsData: BuyTicketsDataDto, cloudinaryUrl: string): Promise<any> {
+  async createTicket(ticketsData: BuyTicketsDataDto): Promise<any> {
     const clientSaved: Array<Client> = []
     const parsedClients: Array<ClientDataDto> = JSON.parse(ticketsData.clients)
 
@@ -44,7 +44,7 @@ export class TicketService {
       email: ticketsData.email,
       prevent: new Types.ObjectId(ticketsData.prevent),
       total: ticketsData.total,
-      url: cloudinaryUrl,
+      url: ticketsData.cloudinaryUrl,
       active: true
     })
     return await this.voucherModel.create(newComprobante)
