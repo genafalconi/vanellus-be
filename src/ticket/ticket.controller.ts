@@ -22,10 +22,12 @@ export class TicketController {
   ) { }
 
   @Post('/create')
-  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto, @Req() request: Request): Promise<Array<Client>> {
+  async createTicket(
+    @Body() ticketsBuy: BuyTicketsDataDto,
+    @UploadedFile() comprobante: Express.Multer.File
+  ): Promise<Array<Client>> {
     try {
       // const { file, fields } = await this.parseFileFromRequest(request);
-      const comprobante = request.body
       console.log(comprobante, ticketsBuy)
       const imgUrl = await this.ticketService.saveFileCloudinary(ticketsBuy)
 
