@@ -23,22 +23,19 @@ export class TicketController {
   ) { }
 
   @Post('/create')
-  @UseInterceptors(FileInterceptor('comprobante'))
-  async createTicket(
-    @Body() ticketsBuy: BuyTicketsDataDto,
-    @Req() request: Request,
-    @UploadedFile() comprobante: Express.Multer.File
-  ): Promise<Array<Client>> {
+  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto): Promise<Array<Client>> {
     try {
-      const { fields } = await this.parseFileFromRequest(request);
-      console.log(comprobante, ticketsBuy, fields)
-      const imgUrl = await this.ticketService.saveFileCloudinary(ticketsBuy)
-
-      return await this.ticketService.createTicket({ ...ticketsBuy, cloudinaryUrl: imgUrl });
+      return await this.ticketService.createTicket(ticketsBuy);
     } catch (error) {
       console.error('Error creating ticket:', error);
       throw { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: 'Internal server error' };
     }
+  }
+
+  @Post('/comprobante')
+  @UseInterceptors(FileInterceptor('comprobante'))
+  async uploadComprobante(@UploadedFile() comprobante: Express.Multer.File): Promise<string> {
+    return await this.ticketService.saveFileCloudinary(comprobante)
   }
 
   async parseFileFromRequest(request: Request): Promise<any> {
@@ -53,7 +50,7 @@ export class TicketController {
 
       busboy.on('field', (fieldname, val) => {
         fields[fieldname] = val;
-        if(fieldname === '__end') {
+        if (fieldname === '__end') {
           resolve({ fields });
         }
       });
