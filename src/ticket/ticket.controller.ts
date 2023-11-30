@@ -9,6 +9,7 @@ import { Prevent } from 'src/schema/prevent.schema';
 import { CloudinaryService } from 'src/helpers/cloudinary.service';
 import * as Busboy from 'busboy';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 const MAX_FILE_SIZE_IN_BYTES = 3 * 1024 * 1024; // 3 MB
 
@@ -22,13 +23,15 @@ export class TicketController {
   ) { }
 
   @Post('/create')
+  @UseInterceptors(FileInterceptor('comprobante'))
   async createTicket(
     @Body() ticketsBuy: BuyTicketsDataDto,
+    @Req() request: Request,
     @UploadedFile() comprobante: Express.Multer.File
   ): Promise<Array<Client>> {
     try {
-      // const { file, fields } = await this.parseFileFromRequest(request);
-      console.log(comprobante, ticketsBuy)
+      const { fields } = await this.parseFileFromRequest(request);
+      console.log(comprobante, ticketsBuy, fields)
       const imgUrl = await this.ticketService.saveFileCloudinary(ticketsBuy)
 
       return await this.ticketService.createTicket({ ...ticketsBuy, cloudinaryUrl: imgUrl });
@@ -43,30 +46,9 @@ export class TicketController {
       const busboy = Busboy({ headers: request.headers, highWaterMark: 2 * 1024 * 1024 });
 
       const fields: any = {};
-      const file: any = {};
 
       busboy.on('request', (req, res, opts) => {
         req.socket.setTimeout(10000);
-      });
-
-      busboy.on('file', (fieldname, fileStream, filename, encoding, mimeType) => {
-        const chunks: Buffer[] = [];
-
-        fileStream.on('data', (data) => {
-          chunks.push(data);
-        });
-
-        fileStream.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          file[fieldname] = {
-            fieldname,
-            originalname: filename,
-            encoding,
-            mimetype: mimeType,
-            buffer,
-            size: buffer.length,
-          };
-        });
       });
 
       busboy.on('field', (fieldname, val) => {
@@ -75,7 +57,7 @@ export class TicketController {
 
       busboy.on('finish', () => {
         if (fields['__end'] === 'true') {
-          resolve({ file, fields });
+          resolve({ fields });
           console.log('Form data complete');
         } else {
           console.log('Form data still being sent');
