@@ -12,7 +12,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({
         uri: config.get('MONGO_DB'),
-        maxPoolSize: 10,
+        maxPoolSize: 1,
         autoIndex: true,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,

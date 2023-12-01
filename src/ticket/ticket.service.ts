@@ -1,5 +1,4 @@
-import { HttpException, HttpStatus, Inject, Injectable, Req, UploadedFile } from '@nestjs/common';
-import { diskStorage } from 'multer';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { tickets } from 'src/data/qrticket';
 import { TicketDto } from 'src/data/ticket.dto';
 import { v2 as cloudinary } from 'cloudinary';
@@ -48,22 +47,6 @@ export class TicketService {
       active: true
     })
     return await this.voucherModel.create(newComprobante)
-  }
-
-  async saveFileCloudinary(comprobante: Express.Multer.File): Promise<string> {
-    const { buffer } = comprobante;
-    const bufferData = Buffer.from(buffer)
-
-    const result: any = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream({ resource_type: 'auto', folder: 'Vanellus' }, async (error, result) => {
-        if (error) {
-          reject(error);
-        }
-        resolve(result);
-      }).end(bufferData);
-    });
-
-    return result?.url;
   }
 
   async getTickets(prevent: string) {
