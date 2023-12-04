@@ -3,7 +3,7 @@ import { tickets } from 'src/data/qrticket';
 import { TicketDto } from 'src/data/ticket.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import * as qrcode from 'qrcode';
-import { ClientDataDto, BuyTicketsDataDto, PreventDataDto } from 'src/data/client.dto';
+import { ClientDataDto, BuyTicketsDataDto, PreventDataDto, PreventTotalsDto } from 'src/data/client.dto';
 import { Ticket } from 'src/schema/ticket.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -25,28 +25,34 @@ export class TicketService {
     private readonly voucherModel: Model<Voucher>,
   ) { }
 
-  async createTicket(ticketsData: BuyTicketsDataDto): Promise<any> {
+  async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = []
     const parsedClients: Array<ClientDataDto> = ticketsData.clients
+    const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
 
-    for (let cli of parsedClients) {
-      const newClient = new this.clientModel({
-        fullName: cli.fullName,
-        dni: cli.dni
-      });
+    if (prevent.active) {
+      for (let cli of parsedClients) {
+        const newClient = new this.clientModel({
+          fullName: cli.fullName,
+          dni: cli.dni
+        });
 
-      const saved = await this.clientModel.create(newClient);
-      clientSaved.push(saved._id);
+        const saved = await this.clientModel.create(newClient);
+        clientSaved.push(saved._id);
+      }
+
+      const newComprobante = new this.voucherModel({
+        clients: clientSaved,
+        email: ticketsData.email,
+        prevent: new Types.ObjectId(ticketsData.prevent),
+        total: ticketsData.total,
+        url: ticketsData.cloudinaryUrl,
+        active: true
+      })
+      return await this.voucherModel.create(newComprobante)
+    } else {
+      throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
     }
-    const newComprobante = new this.voucherModel({
-      clients: clientSaved,
-      email: ticketsData.email,
-      prevent: new Types.ObjectId(ticketsData.prevent),
-      total: ticketsData.total,
-      url: ticketsData.cloudinaryUrl,
-      active: true
-    })
-    return await this.voucherModel.create(newComprobante)
   }
 
   async getTickets(prevent: string) {
@@ -117,7 +123,18 @@ export class TicketService {
     return await this.preventModel.create(preventCreated)
   }
 
-  async getPrevents(): Promise<Array<Prevent>> {
-    return await this.preventModel.find()
+  async getPrevents(): Promise<Array<PreventTotalsDto>> {
+    const prevents = await this.preventModel.find();
+    const result: Array<PreventTotalsDto> = [];
+
+    for (let prev of prevents) {
+      const vouchers = await this.voucherModel.find({ prevent: new Types.ObjectId(prev._id) });
+      const totalClients = vouchers.reduce((total, voucher) => total + voucher.clients.length, 0);
+
+      result.push({ prevent: prev, totalClients });
+    }
+
+    return result;
   }
+
 }

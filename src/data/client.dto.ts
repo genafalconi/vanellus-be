@@ -1,3 +1,5 @@
+import { Prevent } from "src/schema/prevent.schema";
+
 export class ClientDataDto {
   dni: number;
   fullName: string;
@@ -15,4 +17,9 @@ export class PreventDataDto {
   name: string;
   price: number;
   active: boolean;
+}
+
+export class PreventTotalsDto {
+  prevent: Prevent;
+  totalClients: number;
 }
