@@ -1,9 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { tickets } from 'src/data/qrticket';
-import { TicketDto } from 'src/data/ticket.dto';
-import { v2 as cloudinary } from 'cloudinary';
 import * as qrcode from 'qrcode';
-import { ClientDataDto, BuyTicketsDataDto, PreventDataDto, PreventTotalsDto } from 'src/data/client.dto';
+import { ClientDataDto, BuyTicketsDataDto, PreventDataDto, PreventTotalsDto, TicketCreateDto, MailDataDto, FROM_EMAIL, SubjectDto, FlyerLink, WppLink } from 'src/data/client.dto';
 import { Ticket } from 'src/schema/ticket.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -11,6 +8,8 @@ import { Client } from 'src/schema/client.schema';
 import { firebaseAuth } from 'src/firebase/firebase.app';
 import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
+import { sendEmail } from 'src/helpers/node-mailer';
+import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 
 @Injectable()
 export class TicketService {
@@ -55,11 +54,15 @@ export class TicketService {
     }
   }
 
-  async getTickets(prevent: string) {
+  async getTickets(prevent: string): Promise<Array<Voucher>> {
     return await this.voucherModel.find({ prevent: new Types.ObjectId(prevent) })
       .populate({
         path: 'clients',
         model: 'Client',
+        populate: {
+          path: 'ticket',
+          model: 'Ticket'
+        }
       })
   }
 
@@ -77,43 +80,54 @@ export class TicketService {
     }
   }
 
-  async createQrCode(client: Client): Promise<Ticket> {
-    // const invitationCode = this.generateInvitationCode(client);
-
-    // const options = { errorCorrectionLevel: 'H' };
-    // const qrCodeDataUrl = await this.generateQrCode(invitationCode, options); 
-
-    const ticket = new this.ticketModel({
-      url: '',
-      used: false,
-      active: false,
-      sent: false
-    })
-
-    const ticketCreated = await this.ticketModel.create(ticket)
-    await this.clientModel.findByIdAndUpdate(
-      client._id,
-      { $set: { ticket: ticketCreated.url } },
-      { new: true }
-    )
-
-    return ticketCreated
+  async createQrCode(ticketsData: CreateTicketsDto): Promise<Array<Client>> {
+    const ticketsToSend = await this.generateInvitationCode(ticketsData.clients);
+    // await this.sendAuthEmail({ mailTo: ticketsData.email, clients: ticketsToSend })
+    return ticketsToSend
   }
 
-  // generateInvitationCode(client: Client): string {
-  //   return `${client.fullName}-${client.email}-${client.dni}`;
-  // }
+  async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
+    const clientsUpdated: Array<Client> = [];
 
-  async generateQrCode(data: string, options: any): Promise<any> {
+    for (const cli of clients) {
+      const ticketClient = new this.ticketModel({
+        url: '',
+        used: false,
+        active: true,
+        sent: true
+      });
+
+      const ticketData = JSON.stringify({ ticketId: ticketClient._id, client: cli.fullName, dni: cli.dni, clientId: cli._id });
+      const qrUrl = await this.generateQrCode(ticketData);
+
+      ticketClient.url = qrUrl;
+
+      const [clientUpdate, ticketNew] = await Promise.all([
+        this.clientModel.findByIdAndUpdate(
+          new Types.ObjectId(cli._id),
+          { $set: { ticket: new Types.ObjectId(ticketClient._id) } },
+          { new: true }
+        ).populate({ path: 'ticket', model: 'Ticket' }),
+        this.ticketModel.create(ticketClient),
+      ]);
+
+      clientsUpdated.push(clientUpdate);
+    }
+
+    return clientsUpdated;
+  }
+
+  async generateQrCode(data: string): Promise<string> {
     try {
-      const dataUrl = qrcode.toBuffer(data, options)
-      return dataUrl
+      const dataUrl = await qrcode.toDataURL(data, { errorCorrectionLevel: 'H' });
+      // const qrBuffer = await qrcode.toBuffer(data, { errorCorrectionLevel: 'H' });
+      // const dataUrl = `data:image/png;base64,${qrBuffer.toString('base64')}`;
+      return dataUrl;
     } catch (error) {
       console.error('Error generating QR code:', error);
       throw error;
     }
   }
-
   async createPrevent(prevent: PreventDataDto): Promise<Prevent> {
     const preventCreated = new this.preventModel({
       name: prevent.name,
@@ -135,6 +149,49 @@ export class TicketService {
     }
 
     return result;
+  }
+
+  async sendUnauthEmail(unauthMail: string) {
+    const dataToEmail: MailDataDto = {
+      from: FROM_EMAIL,
+      to: unauthMail,
+      subject: SubjectDto.UNAUTH,
+      text: `Te comunicamos que no cumplis los requisitos de edad para asistir al evento.\n
+        FANTOM 9/12 \n
+        Te pedimos que te comuniques con <a href="${WppLink}">Mateo</a> para la devolucion de la plata!!\n
+        <img style="width: 200px; object-fit: cover;"  src="${FlyerLink}" alt="Flyer" />`
+    }
+    return await sendEmail(dataToEmail);
+  }
+
+  parseClientTickets(ticketsToSend: Array<string>): Array<string> {
+    return ticketsToSend.map((elem) => `${elem}\n`)
+  }
+
+  getTicketData(clients: Array<Client>): Array<string> {
+    const ticketsToSend: Array<string> = []
+    for (let cli of clients) {
+      const nameAndQrTicket = `Nombre: ${cli.fullName}, DNI: ${cli.dni}
+      <img style="width: 150px; object-fit: cover;" src="${cli.ticket.url}" alt="QRcode" />`
+      ticketsToSend.push(nameAndQrTicket);
+    }
+    return this.parseClientTickets(ticketsToSend);
+  }
+
+  async sendAuthEmail(ticketData: TicketSendDto) {
+    const ticketsToSend: Array<string> = this.getTicketData(ticketData.clients);
+
+    const dataToEmail: MailDataDto = {
+      from: FROM_EMAIL,
+      to: ticketData.mailTo,
+      subject: SubjectDto.AUTH,
+      text: `Te mandamos tu entrada para el evento. \n
+        FANTOM 9/12 \n
+        Para visualizar la entrada, permiti descargar el contenido bloqueado!!\n
+        ${ticketsToSend}\n
+        <img style="width: 200px; object-fit: cover;"  src="${FlyerLink}" alt="Flyer" />`
+    }
+    return await sendEmail(dataToEmail);
   }
 
 }

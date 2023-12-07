@@ -1,12 +1,13 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Inject, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { TicketService } from './ticket.service';
-import { BuyTicketsDataDto, PreventDataDto, PreventTotalsDto } from 'src/data/client.dto';
+import { BuyTicketsDataDto, PreventDataDto, PreventTotalsDto, TicketCreateDto } from 'src/data/client.dto';
 import { Client } from 'src/schema/client.schema';
 import { CustomRequest } from 'src/firebase/customRequest';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { Ticket } from 'src/schema/ticket.schema';
 import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
+import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 
 @Controller('ticket')
 export class TicketController {
@@ -22,7 +23,7 @@ export class TicketController {
 
   @UseGuards(FirebaseAuthGuard)
   @Get('/')
-  async getTickets(@Query('prevent') prevent: string) {
+  async getTickets(@Query('prevent') prevent: string): Promise<Array<Voucher>> {
     return await this.ticketService.getTickets(prevent);
   }
 
@@ -31,10 +32,10 @@ export class TicketController {
     return await this.ticketService.verifyToken(req.headers.authorization);
   }
 
-  @UseGuards(FirebaseAuthGuard)
+  // @UseGuards(FirebaseAuthGuard)
   @Post('/createQr')
-  async createQrAndEmail(@Body() client: Client): Promise<Ticket> {
-    return await this.ticketService.createQrCode(client);
+  async createQrAndEmail(@Body() ticketsData: CreateTicketsDto): Promise<Array<Client>> {
+    return await this.ticketService.createQrCode(ticketsData);
   }
 
   @UseGuards(FirebaseAuthGuard)
@@ -46,6 +47,16 @@ export class TicketController {
   @Get('/getPrevents')
   async getPrevents(): Promise<Array<PreventTotalsDto>> {
     return await this.ticketService.getPrevents();
+  }
+
+  @Post('/email/unauthorized')
+  async sendUnauthorizedEmail(@Query('mail_to') unauthMail: string) {
+    return await this.ticketService.sendUnauthEmail(unauthMail);
+  }
+
+  @Post('/email/authorized')
+  async sendAuthorizedEmail(@Body() ticketMail: TicketSendDto) {
+    return await this.ticketService.sendAuthEmail(ticketMail);
   }
 
 }
