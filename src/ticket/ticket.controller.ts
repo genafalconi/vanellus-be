@@ -1,10 +1,9 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { TicketService } from './ticket.service';
-import { BuyTicketsDataDto, PreventDataDto, PreventTotalsDto, TicketCreateDto } from 'src/data/client.dto';
+import { BuyTicketsDataDto, PreventDataDto, PreventTotalsDto } from 'src/data/client.dto';
 import { Client } from 'src/schema/client.schema';
 import { CustomRequest } from 'src/firebase/customRequest';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
-import { Ticket } from 'src/schema/ticket.schema';
 import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
 import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
@@ -32,10 +31,15 @@ export class TicketController {
     return await this.ticketService.verifyToken(req.headers.authorization);
   }
 
-  // @UseGuards(FirebaseAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Post('/createQr')
   async createQrAndEmail(@Body() ticketsData: CreateTicketsDto): Promise<Array<Client>> {
     return await this.ticketService.createQrCode(ticketsData);
+  }
+
+  @Post('/excel')
+  async generateQrExcel(): Promise<any> {
+    return await this.ticketService.generateExcelFile();
   }
 
   @UseGuards(FirebaseAuthGuard)

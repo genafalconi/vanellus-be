@@ -17,7 +17,7 @@ export const sendEmail = async (mailData: MailDataDto) => {
     from: mailData.from,
     to: mailData.to,
     subject: mailData.subject,
-    text: mailData.text
+    text: mailData.text 
   };
 
   await transporter.sendMail(mailOptions, function (error, info) {

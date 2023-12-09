@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import * as qrcode from 'qrcode';
-import { ClientDataDto, BuyTicketsDataDto, PreventDataDto, PreventTotalsDto, TicketCreateDto, MailDataDto, FROM_EMAIL, SubjectDto, FlyerLink, WppLink } from 'src/data/client.dto';
+import { ClientDataDto, BuyTicketsDataDto, PreventDataDto, PreventTotalsDto , MailDataDto, FROM_EMAIL, SubjectDto, FlyerLink, WppLink } from 'src/data/client.dto';
 import { Ticket } from 'src/schema/ticket.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -10,6 +10,8 @@ import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
 import { sendEmail } from 'src/helpers/node-mailer';
 import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
+import * as xlsx from 'xlsx';
+import * as path from 'path';
 
 @Injectable()
 export class TicketService {
@@ -59,10 +61,10 @@ export class TicketService {
       .populate({
         path: 'clients',
         model: 'Client',
-        populate: {
-          path: 'ticket',
-          model: 'Ticket'
-        }
+        // populate: {
+        //   path: 'ticket',
+        //   model: 'Ticket'
+        // }
       })
   }
 
@@ -84,6 +86,68 @@ export class TicketService {
     const ticketsToSend = await this.generateInvitationCode(ticketsData.clients);
     // await this.sendAuthEmail({ mailTo: ticketsData.email, clients: ticketsToSend })
     return ticketsToSend
+  }
+
+  async sendEmails(): Promise<any> {
+    const vouchers = await this.voucherModel.find();
+    const maxIterations = 300;
+    const startIndex = 0
+
+    for (let vou of vouchers.slice(startIndex, maxIterations)) {
+      const ticketsToSend = await this.generateInvitationCode(vou.clients);
+      await this.sendAuthEmail({ mailTo: vou.email, clients: ticketsToSend })
+    }
+
+    return 'Mandados';
+  }
+
+  async generateExcelFile() {
+    const vouchers = await this.voucherModel.find()
+      .populate({
+        path: 'clients',
+        model: 'Client'
+      })
+
+    const excelData = []
+
+    for (let vou of vouchers) {
+      for (let cli of vou.clients) {
+        if (!cli.ticket) {
+          const addToExcel = {
+            nombre: cli.fullName,
+            apellido: '',
+            email: vou.email.toLowerCase(),
+            localizador: '',
+            cantidad: 1,
+            seat: '',
+          }
+          excelData.push(addToExcel);
+          await this.clientModel.findByIdAndUpdate(
+            new Types.ObjectId(cli._id),
+            { $set: { ticket: true } },
+            { new: true }
+          )
+        }
+      }
+    }
+
+    const flatData = excelData.flat(Infinity)
+
+    // Create a worksheet
+    const ws = xlsx.utils.json_to_sheet(flatData);
+
+    // Create a workbook
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
+
+    const saveDirectory = 'C:/Users/genar/Documents/vanellusqr';
+    const excelFileName = 'listaQr.xlsx';
+    const filePath = path.join(saveDirectory, excelFileName);
+
+    // Save the workbook to a file
+    xlsx.writeFile(wb, filePath);
+
+    return `Excel file "${excelFileName}" generated successfully.`;
   }
 
   async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
