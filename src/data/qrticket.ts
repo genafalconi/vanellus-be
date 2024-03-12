@@ -1,3 +1,3 @@
-import { TicketDto } from "./ticket.dto";
+import { TicketDto } from './ticket.dto';
 
-export const tickets: TicketDto[] = []
+export const tickets: TicketDto[] = [];
