@@ -1,4 +1,4 @@
-import { Client } from "src/schema/client.schema";
+import { Client } from 'src/schema/client.schema';
 
 export class TicketDto {
   id: number;

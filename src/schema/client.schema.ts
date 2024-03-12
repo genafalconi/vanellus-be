@@ -11,7 +11,7 @@ export class Client extends Document {
   dni: string;
 
   @Prop({ type: Types.ObjectId, ref: 'Ticket', default: null })
-  ticket: Ticket
+  ticket: Ticket;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

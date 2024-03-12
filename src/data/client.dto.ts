@@ -1,6 +1,6 @@
-import { Client } from "src/schema/client.schema";
-import { Prevent } from "src/schema/prevent.schema";
-import { Voucher } from "src/schema/voucher.schema";
+import { Client } from 'src/schema/client.schema';
+import { Prevent } from 'src/schema/prevent.schema';
+import { Voucher } from 'src/schema/voucher.schema';
 
 export class ClientDataDto {
   dni: number;
@@ -38,13 +38,15 @@ export class MailDataDto {
   text: string;
 }
 
-export const FROM_EMAIL = 'fantomcsb@gmail.com'
+export const FROM_EMAIL = 'fantomcsb@gmail.com';
 
 export enum SubjectDto {
   AUTH = 'Aca esta tu entrada para la FANTOM',
-  UNAUTH = 'No cumplis con los requisitos'
+  UNAUTH = 'No cumplis con los requisitos',
 }
 
-export const FlyerLink = 'https://res.cloudinary.com/do2rkxpux/image/upload/v1701296322/Vanellus/Ppal/Flyer_fgwdm5.jpg'
+export const FlyerLink =
+  'https://res.cloudinary.com/do2rkxpux/image/upload/v1701296322/Vanellus/Ppal/Flyer_fgwdm5.jpg';
 
-export const WppLink = 'https://wa.me/+5491161569011?text=Hola!%20Necesito%20la%20devolucion%20de%20entradas%20para%20la%20Fantom'
+export const WppLink =
+  'https://wa.me/+5491161569011?text=Hola!%20Necesito%20la%20devolucion%20de%20entradas%20para%20la%20Fantom';
