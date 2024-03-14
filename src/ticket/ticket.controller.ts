@@ -69,6 +69,11 @@ export class TicketController {
     return await this.ticketService.getPrevents();
   }
 
+  @Get('/get-active-prevent')
+  async getActivePrevent(): Promise<Prevent> {
+    return await this.ticketService.getActivePrevent();
+  }
+
   @Post('/email/unauthorized')
   async sendUnauthorizedEmail(@Query('mail_to') unauthMail: string) {
     return await this.ticketService.sendUnauthEmail(unauthMail);

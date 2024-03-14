@@ -36,7 +36,7 @@ export class TicketService {
     private readonly preventModel: Model<Prevent>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
-  ) {}
+  ) { }
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = [];
@@ -244,6 +244,10 @@ export class TicketService {
     }
 
     return result;
+  }
+
+  async getActivePrevent(): Promise<Prevent> {
+    return await this.preventModel.findOne({ active: true });
   }
 
   async sendUnauthEmail(unauthMail: string) {
