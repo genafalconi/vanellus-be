@@ -15,7 +15,6 @@ import { Ticket } from 'src/schema/ticket.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Client } from 'src/schema/client.schema';
-import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
@@ -81,22 +80,22 @@ export class TicketService {
       });
   }
 
-  async verifyToken(token: string): Promise<boolean> {
-    try {
-      token = token.split(' ')[1];
-      if (token !== 'null') {
-        const tokenValidation = await firebaseAuth.verifyIdToken(token);
-        return !!tokenValidation;
-      } else {
-        return false;
-      }
-    } catch (error: any) {
-      throw new HttpException(
-        `Failed to verify token: ${error.message}`,
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-  }
+  // async verifyToken(token: string): Promise<boolean> {
+  //   try {
+  //     token = token.split(' ')[1];
+  //     if (token !== 'null') {
+  //       const tokenValidation = await firebaseAuth.verifyIdToken(token);
+  //       return !!tokenValidation;
+  //     } else {
+  //       return false;
+  //     }
+  //   } catch (error: any) {
+  //     throw new HttpException(
+  //       `Failed to verify token: ${error.message}`,
+  //       HttpStatus.UNAUTHORIZED,
+  //     );
+  //   }
+  // }
 
   async createQrCode(ticketsData: CreateTicketsDto): Promise<Array<Client>> {
     const ticketsToSend = await this.generateInvitationCode(
@@ -292,21 +291,21 @@ export class TicketService {
     return await sendEmail(dataToEmail);
   }
 
-  async getToken(loginDto: LoginDto): Promise<SecurityDto> {
-    const { email, password } = loginDto;
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        firebaseClientAuth,
-        email,
-        password,
-      );
+  // async getToken(loginDto: LoginDto): Promise<SecurityDto> {
+  //   const { email, password } = loginDto;
+  //   try {
+  //     const userCredential = await signInWithEmailAndPassword(
+  //       firebaseClientAuth,
+  //       email,
+  //       password,
+  //     );
 
-      const idToken = await userCredential.user.getIdToken();
-      const refreshToken = userCredential.user.refreshToken;
+  //     const idToken = await userCredential.user.getIdToken();
+  //     const refreshToken = userCredential.user.refreshToken;
 
-      return { access_token: idToken, refresh_token: refreshToken };
-    } catch (error: any) {
-      throw new Error(`Failed to get token: ${error.message}`);
-    }
-  }
+  //     return { access_token: idToken, refresh_token: refreshToken };
+  //   } catch (error: any) {
+  //     throw new Error(`Failed to get token: ${error.message}`);
+  //   }
+  // }
 }
