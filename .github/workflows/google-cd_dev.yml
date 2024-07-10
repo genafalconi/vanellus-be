@@ -1,0 +1,65 @@
+name: Build and Push to GCP (dev)
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  build-push-gcr:
+    name: Build and Push to GCP
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: vanelluss-csb
+      REGION: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate gcloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+      - name: Generate Build Args
+        id: build_args
+        run: |
+          chmod +x build_args.sh
+          ./build_args.sh
+        shell: bash
+
+      - name: Update Dockerfile with dynamic variables
+        run: |
+          # Insert dynamic variables into Dockerfile
+          sed '/# DOCKERFILE_VARS_PLACEHOLDER/r dockerfile_vars.txt' Dockerfile | sed '/# DOCKERFILE_VARS_PLACEHOLDER/d' > Dockerfile.new
+          mv Dockerfile.new Dockerfile
+
+      - name: Set IMAGE_NAME and SERVICE_NAME
+        run: |
+          echo "IMAGE_NAME=vanellus-be" >> $GITHUB_ENV
+          echo "SERVICE_NAME=vanellus-be" >> $GITHUB_ENV
+
+      - name: Build Docker Image
+        run: docker build -t ${{ env.IMAGE_NAME }}:latest . ${{ env.BUILD_ARGS }}
+
+      - name: Configure Docker Client
+        run: |
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Push Docker Image to Artifact Registry
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:latest ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy container image to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.IMAGE_NAME }}:latest
+          region: ${{ env.REGION }}
+          flags: '--port=4000 --allow-unauthenticated'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}

@@ -132,18 +132,17 @@ export class TicketService {
         if (!cli.ticket) {
           const addToExcel = {
             nombre: cli.fullName,
-            apellido: '',
             email: vou.email.toLowerCase(),
-            localizador: '',
+            comprobante: vou.url,
             cantidad: 1,
             seat: '',
           };
           excelData.push(addToExcel);
-          await this.clientModel.findByIdAndUpdate(
-            new Types.ObjectId(cli._id),
-            { $set: { ticket: true } },
-            { new: true },
-          );
+          // await this.clientModel.findByIdAndUpdate(
+          //   new Types.ObjectId(cli._id),
+          //   { $set: { ticket: true } },
+          //   { new: true },
+          // );
         }
       }
     }
@@ -157,7 +156,7 @@ export class TicketService {
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
 
-    const saveDirectory = 'C:/Users/genar/Documents/vanellusqr';
+    const saveDirectory = 'C:/Users/Genaro Stafi/Documents/vanellus';
     const excelFileName = 'listaQr.xlsx';
     const filePath = path.join(saveDirectory, excelFileName);
 
