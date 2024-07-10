@@ -29,7 +29,7 @@ while IFS= read -r line; do
     BUILD_ARGS+=" --build-arg ${VAR_NAME}='${VAR_VALUE}'"
     DOCKERFILE_VARS+="ARG ${VAR_NAME}\nENV ${VAR_NAME}=\${${VAR_NAME}}\n"
   fi
-done < "env/${ENV_FILE}"
+done < "${ENV_FILE}"
 
 # Output the build arguments
 echo "BUILD_ARGS=${BUILD_ARGS}" >> $GITHUB_ENV

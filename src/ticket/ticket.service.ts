@@ -90,7 +90,7 @@ export class TicketService {
       } else {
         return false;
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         `Failed to verify token: ${error.message}`,
         HttpStatus.UNAUTHORIZED,
@@ -305,7 +305,7 @@ export class TicketService {
       const refreshToken = userCredential.user.refreshToken;
 
       return { access_token: idToken, refresh_token: refreshToken };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to get token: ${error.message}`);
     }
   }
