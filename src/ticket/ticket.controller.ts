@@ -19,6 +19,8 @@ import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
 import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
+import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
+import { CustomRequest } from 'src/firebase/customRequest';
 
 @Controller('ticket')
 export class TicketController {
@@ -32,18 +34,18 @@ export class TicketController {
     return await this.ticketService.createTicket(ticketsBuy);
   }
 
-  // @UseGuards(FirebaseAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Get('/')
   async getTickets(@Query('prevent') prevent: string): Promise<Array<Voucher>> {
     return await this.ticketService.getTickets(prevent);
   }
 
-  // @Get('/verify-token')
-  // async verifyTokenFirebase(@Req() req: CustomRequest): Promise<boolean> {
-  //   return await this.ticketService.verifyToken(req.headers.authorization);
-  // }
+  @Get('/verify-token')
+  async verifyTokenFirebase(@Req() req: CustomRequest): Promise<boolean> {
+    return await this.ticketService.verifyToken(req.headers.authorization);
+  }
 
-  // @UseGuards(FirebaseAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Post('/createQr')
   async createQrAndEmail(
     @Body() ticketsData: CreateTicketsDto,
@@ -56,7 +58,7 @@ export class TicketController {
     return await this.ticketService.generateExcelFile();
   }
 
-  // @UseGuards(FirebaseAuthGuard)
+  @UseGuards(FirebaseAuthGuard)
   @Post('/createPrevent')
   async createPrevent(@Body() prevent: PreventDataDto): Promise<Prevent> {
     return await this.ticketService.createPrevent(prevent);
@@ -82,8 +84,8 @@ export class TicketController {
     return await this.ticketService.sendAuthEmail(ticketMail);
   }
 
-  // @Post('/token')
-  // async getTokenFirebase(@Body() login: LoginDto): Promise<SecurityDto> {
-  //   return await this.ticketService.getToken(login);
-  // }
+  @Post('/token')
+  async getTokenFirebase(@Body() login: LoginDto): Promise<SecurityDto> {
+    return await this.ticketService.getToken(login);
+  }
 }
