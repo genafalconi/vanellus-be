@@ -3,7 +3,7 @@ name: Build and Push to GCP (dev)
 on:
   push:
     branches:
-      - development
+      - main
 
 jobs:
   build-push-gcr:
