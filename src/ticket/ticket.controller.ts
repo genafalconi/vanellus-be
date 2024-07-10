@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
@@ -21,13 +22,15 @@ import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { CustomRequest } from 'src/firebase/customRequest';
+import { Response } from 'express';
+import * as path from 'path';
 
 @Controller('ticket')
 export class TicketController {
   constructor(
     @Inject(TicketService)
     private readonly ticketService: TicketService,
-  ) {}
+  ) { }
 
   @Post('/create')
   async createTicket(@Body() ticketsBuy: BuyTicketsDataDto): Promise<Voucher> {
@@ -87,5 +90,14 @@ export class TicketController {
   @Post('/token')
   async getTokenFirebase(@Body() login: LoginDto): Promise<SecurityDto> {
     return await this.ticketService.getToken(login);
+  }
+
+  @Get('download')
+  async downloadExcel(@Res() res: Response): Promise<void> {
+    const buffer = await this.ticketService.generateExcelFile();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=entradas.xlsx');
+    res.send(buffer);
   }
 }

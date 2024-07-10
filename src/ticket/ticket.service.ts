@@ -119,7 +119,7 @@ export class TicketService {
     return 'Mandados';
   }
 
-  async generateExcelFile() {
+  async generateExcelFile(): Promise<string> {
     const vouchers = await this.voucherModel.find().populate({
       path: 'clients',
       model: 'Client',
@@ -134,36 +134,29 @@ export class TicketService {
             nombre: cli.fullName,
             email: vou.email.toLowerCase(),
             comprobante: vou.url,
-            cantidad: 1,
-            seat: '',
+            cantidad: vou.clients.length,
+            checkeado: '',
           };
           excelData.push(addToExcel);
-          // await this.clientModel.findByIdAndUpdate(
-          //   new Types.ObjectId(cli._id),
-          //   { $set: { ticket: true } },
-          //   { new: true },
-          // );
         }
       }
     }
 
-    const flatData = excelData.flat(Infinity);
+    const flatData = excelData.flat();
 
-    // Create a worksheet
+    // Create a new workbook
+    const wb = xlsx.utils.book_new();
+
+    // Convert data to worksheet format
     const ws = xlsx.utils.json_to_sheet(flatData);
 
-    // Create a workbook
-    const wb = xlsx.utils.book_new();
+    // Add the worksheet to the workbook
     xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
 
-    const saveDirectory = 'C:/Users/Genaro Stafi/Documents/vanellus';
-    const excelFileName = 'listaQr.xlsx';
-    const filePath = path.join(saveDirectory, excelFileName);
+    // Write the workbook to a buffer
+    const buffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
 
-    // Save the workbook to a file
-    xlsx.writeFile(wb, filePath);
-
-    return `Excel file "${excelFileName}" generated successfully.`;
+    return buffer;
   }
 
   async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
@@ -308,5 +301,9 @@ export class TicketService {
     } catch (error: any) {
       throw new Error(`Failed to get token: ${error.message}`);
     }
+  }
+
+  async exportExcelFile() {
+
   }
 }
