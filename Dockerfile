@@ -27,7 +27,7 @@ COPY .env .env
 RUN npm run build
 
 # Expose the port on which the app will run, default to 4002 if APP_PORT is not set
-EXPOSE ${APP_PORT:-4000}
+EXPOSE ${APP_PORT:-4001}
 
 # Start the server using the production build
 CMD ["npm", "run", "start:prod"]
