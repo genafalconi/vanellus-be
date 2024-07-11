@@ -27,6 +27,7 @@ import { google, sheets_v4 } from 'googleapis';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
 import { auth, OAuth2Client } from 'google-auth-library';
+import { firebaseAdminConfig } from 'src/firebase/firebaseAdmin';
 
 @Injectable()
 export class TicketService {
@@ -160,10 +161,11 @@ export class TicketService {
 
     const flatData = excelData.flat();
 
+    const headers = ['Nombre y Apellido', 'Mail', 'Comprobante', 'Cantidad', 'Pago?', 'Dudoso', 'Mail mandado'];
     const values = flatData.map((row: any) => Object.values(row));
-    const resource = {
-      values,
-    };
+
+    const data = [headers, ...values];
+    const resource = { values: data };
     await this.writeGoogleSheet(resource)
     // Create a new workbook
     const wb = xlsx.utils.book_new();
@@ -325,7 +327,7 @@ export class TicketService {
   }
 
   async createGoogleClient() {
-    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_STRING);
+    const credentials = firebaseAdminConfig;
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
