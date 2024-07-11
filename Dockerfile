@@ -18,7 +18,7 @@ COPY . .
 
 # Accept the environment file as an argument
 ARG ENV_FILE=.env
-COPY ${ENV_FILE} .env
+COPY .env .env
 
 # Placeholder for dynamically generated ARG and ENV directives
 # DOCKERFILE_VARS_PLACEHOLDER
