@@ -100,4 +100,9 @@ export class TicketController {
     res.setHeader('Content-Disposition', 'attachment; filename=entradas.xlsx');
     res.send(buffer);
   }
+
+  @Get('sheets')
+  async sheetsFileGoogle() {
+    return await this.ticketService.sheetsFileGoogle();
+  }
 }

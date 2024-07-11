@@ -22,11 +22,17 @@ import { sendEmail } from 'src/helpers/node-mailer';
 import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import * as xlsx from 'xlsx';
 import * as path from 'path';
+import * as fs from 'fs';
+import { google, sheets_v4 } from 'googleapis';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
+import { auth, OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class TicketService {
+  private oAuth2Client: OAuth2Client;
+  private sheets: any;
+
   constructor(
     @InjectModel(Ticket.name)
     private readonly ticketModel: Model<Ticket>,
@@ -62,6 +68,16 @@ export class TicketService {
       url: ticketsData.cloudinaryUrl,
       active: true,
     });
+    const values = parsedClients.map(cli => [
+      cli.fullName,
+      newComprobante.email,
+      newComprobante.url,
+      parsedClients.length,
+      '',
+    ]);
+    const resource = { values };
+    await this.appendGoogleSheet(resource);
+
     return await this.voucherModel.create(newComprobante);
     // } else {
     //   throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
@@ -144,6 +160,11 @@ export class TicketService {
 
     const flatData = excelData.flat();
 
+    const values = flatData.map((row: any) => Object.values(row));
+    const resource = {
+      values,
+    };
+    await this.writeGoogleSheet(resource)
     // Create a new workbook
     const wb = xlsx.utils.book_new();
 
@@ -303,7 +324,72 @@ export class TicketService {
     }
   }
 
-  async exportExcelFile() {
+  async createGoogleClient() {
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const authClient = await auth.getClient();
+    return google.sheets({ version: 'v4', auth: authClient as any });
+  }
 
+  async sheetsFileGoogle() {
+    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const tabName = 'entradas';
+    const range = 'A:H';
+    const googleSheetClient = await this.createGoogleClient();
+
+    const res = await googleSheetClient.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${tabName}!${range}`,
+    });
+
+    const numRows = res.data.values ? res.data.values.length : 0;
+    return numRows + 1;
+  }
+
+  async writeGoogleSheet(resource: any) {
+    const sheets = await this.createGoogleClient();
+    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const range = 'A:H';
+
+    try {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: range,
+        valueInputOption: 'RAW',
+        requestBody: {
+          range: range,
+          majorDimension: 'ROWS',
+          values: resource.values,
+        },
+      });
+      console.log('Data successfully written to Google Sheets.');
+    } catch (error) {
+      console.error('Error writing data to Google Sheets:', error);
+    }
+  }
+
+  async appendGoogleSheet(resource: any) {
+    const sheets = await this.createGoogleClient();
+    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const range = 'A:H';
+
+    try {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: range,
+        valueInputOption: 'RAW',
+        requestBody: {
+          range: range,
+          majorDimension: 'ROWS',
+          values: resource.values,
+        },
+      });
+      console.log('Data successfully written to Google Sheets.');
+    } catch (error) {
+      console.error('Error writing data to Google Sheets:', error);
+    }
   }
 }
