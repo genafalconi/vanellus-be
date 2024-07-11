@@ -55,6 +55,7 @@ export class TicketService {
       const newClient = new this.clientModel({
         fullName: cli.fullName,
         dni: cli.dni,
+        sexo: cli.sexo
       });
 
       const saved = await this.clientModel.create(newClient);
@@ -71,6 +72,8 @@ export class TicketService {
     });
     const values = parsedClients.map(cli => [
       cli.fullName,
+      cli.dni,
+      cli.sexo,
       newComprobante.email,
       newComprobante.url,
       parsedClients.length,
@@ -149,6 +152,8 @@ export class TicketService {
         if (!cli.ticket) {
           const addToExcel = {
             nombre: cli.fullName,
+            dni: cli.dni,
+            sexo: cli.sexo,
             email: vou.email.toLowerCase(),
             comprobante: vou.url,
             cantidad: vou.clients.length,
@@ -161,7 +166,7 @@ export class TicketService {
 
     const flatData = excelData.flat();
 
-    const headers = ['Nombre y Apellido', 'Mail', 'Comprobante', 'Cantidad', 'Pago?', 'Dudoso', 'Mail mandado'];
+    const headers = ['Nombre y Apellido', 'DNI', 'Sexo', 'Mail', 'Comprobante', 'Cantidad', 'Pago?', 'Dudoso', 'Mail mandado'];
     const values = flatData.map((row: any) => Object.values(row));
 
     const data = [headers, ...values];
@@ -339,7 +344,7 @@ export class TicketService {
   async sheetsFileGoogle() {
     const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
     const tabName = 'entradas';
-    const range = 'A:H';
+    const range = 'A:Z';
     const googleSheetClient = await this.createGoogleClient();
 
     const res = await googleSheetClient.spreadsheets.values.get({
@@ -354,15 +359,15 @@ export class TicketService {
   async writeGoogleSheet(resource: any) {
     const sheets = await this.createGoogleClient();
     const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
-    const range = 'A:H';
+    const range = 'A:Z';
 
     try {
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: range,
+        range: `entradas!${range}`,
         valueInputOption: 'RAW',
         requestBody: {
-          range: range,
+          range:  `entradas!${range}`,
           majorDimension: 'ROWS',
           values: resource.values,
         },

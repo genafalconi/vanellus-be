@@ -23,7 +23,6 @@ import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { CustomRequest } from 'src/firebase/customRequest';
 import { Response } from 'express';
-import * as path from 'path';
 
 @Controller('ticket')
 export class TicketController {

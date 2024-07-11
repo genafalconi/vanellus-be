@@ -12,6 +12,9 @@ export class Client extends Document {
 
   @Prop({ type: Types.ObjectId, ref: 'Ticket', default: null })
   ticket: Ticket;
+
+  @Prop({ default: 'HOMBRE' })
+  sexo: string;
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

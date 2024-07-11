@@ -5,6 +5,7 @@ import { Voucher } from 'src/schema/voucher.schema';
 export class ClientDataDto {
   dni: number;
   fullName: string;
+  sexo: string;
 }
 
 export class BuyTicketsDataDto {
