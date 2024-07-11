@@ -325,7 +325,7 @@ export class TicketService {
   }
 
   async createGoogleClient() {
-    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_STRING);
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
