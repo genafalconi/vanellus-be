@@ -21,11 +21,6 @@ while IFS= read -r line; do
     VAR_NAME=$(echo $line | cut -d= -f1)
     VAR_VALUE=$(echo $line | cut -d= -f2-)
 
-    # Replace escaped newlines with actual newlines for variables containing \n
-    if [[ "$VAR_VALUE" == *\\n* ]]; then
-      VAR_VALUE=$(echo -e "$VAR_VALUE")
-    fi
-
     BUILD_ARGS+=" --build-arg ${VAR_NAME}='${VAR_VALUE}'"
     DOCKERFILE_VARS+="ARG ${VAR_NAME}\nENV ${VAR_NAME}=\${${VAR_NAME}}\n"
   fi
