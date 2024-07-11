@@ -327,7 +327,7 @@ export class TicketService {
   }
 
   async createGoogleClient() {
-    const credentials = firebaseAdminConfig;
+    const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
