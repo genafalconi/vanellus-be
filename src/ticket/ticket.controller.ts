@@ -92,7 +92,7 @@ export class TicketController {
   }
 
   @Get('download')
-  async downloadExcel(@Res() res: Response): Promise<void> {
+  async downloadExcel(): Promise<boolean> {
     return await this.ticketService.generateExcelFile();
   }
 

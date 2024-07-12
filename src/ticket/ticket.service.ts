@@ -141,32 +141,49 @@ export class TicketService {
     return 'Mandados';
   }
 
-  async generateExcelFile(): Promise<void> {
+  async generateExcelFile(): Promise<boolean> {
     try {
       const data = await this.sheetsFileGoogle();
-      const filteredData = data.filter(row => row[6] === 'SI');
+      const filteredData = data.filter(row => row[6] === 'SI' && row[8] === 'NO');
 
       // Map filtered data to match the template
       const wsData = filteredData.map(item => [
-          item[0],  // nombre
-          '',  // apellido (assuming DNI is to be split)
-          item[3],  // email
-          '',  // localizador
-          1,  // cantidad
-          ''        // seat (assuming seat is not provided in the original data)
+        item[0],  // nombre
+        '',  // apellido (assuming DNI is to be split)
+        item[3],  // email
+        '',  // localizador
+        1,  // cantidad
+        ''  // seat (assuming seat is not provided in the original data)
       ]);
 
       // Define headers
       const headers = ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat'];
 
       const excelData = [headers, ...wsData];
-      const resource = { values: excelData };
+      let resource = { values: excelData };
 
-      return await this.writeGoogleSheet(resource);
+      let sheet = 'enviadas';
+      await this.writeGoogleSheet(resource, sheet);
+
+      sheet = 'entradasactualizadas';
+      const updatedData = this.updateSentColumn(data);
+      resource = { values: updatedData };
+      await this.writeGoogleSheet(resource, sheet);
+      
+      return true;
     } catch (error) {
       console.error('Error generating Excel file:', error);
       throw error;
     }
+  }
+
+  updateSentColumn(data) {
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][8] === 'NO') {
+        data[i][8] = 'SI';
+      }
+    }
+    return data;
   }
 
   async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
@@ -337,7 +354,7 @@ export class TicketService {
     return res.data.values;
   }
 
-  async writeGoogleSheet(resource: any) {
+  async writeGoogleSheet(resource: any, sheet: any) {
     const sheets = await this.createGoogleClient();
     const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
     const range = 'A:Z';
@@ -345,10 +362,10 @@ export class TicketService {
     try {
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `enviadas!${range}`,
+        range: `${sheet}!${range}`,
         valueInputOption: 'RAW',
         requestBody: {
-          range: `enviadas!${range}`,
+          range: `${sheet}!${range}`,
           majorDimension: 'ROWS',
           values: resource.values,
         },
