@@ -169,7 +169,7 @@ export class TicketService {
       const updatedData = this.updateSentColumn(data);
       resource = { values: updatedData };
       await this.writeGoogleSheet(resource, sheet);
-      
+
       return true;
     } catch (error) {
       console.error('Error generating Excel file:', error);
@@ -179,7 +179,7 @@ export class TicketService {
 
   updateSentColumn(data) {
     for (let i = 1; i < data.length; i++) {
-      if (data[i][8] === 'NO') {
+      if (data[i][8] === 'NO' && data[i][6] !== 'NO') {
         data[i][8] = 'SI';
       }
     }
