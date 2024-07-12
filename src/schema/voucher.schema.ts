@@ -22,6 +22,9 @@ export class Voucher extends Document {
 
   @Prop({ required: true })
   active: boolean;
+
+  @Prop({ required: true, default: false })
+  sent: boolean;
 }
 
 export const VoucherSchema = SchemaFactory.createForClass(Voucher);

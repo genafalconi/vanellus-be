@@ -78,6 +78,8 @@ export class TicketService {
       newComprobante.url,
       parsedClients.length,
       '',
+      '',
+      'NO'
     ]);
     const resource = { values };
     await this.appendGoogleSheet(resource);
@@ -139,52 +141,32 @@ export class TicketService {
     return 'Mandados';
   }
 
-  async generateExcelFile(): Promise<string> {
-    const vouchers = await this.voucherModel.find().populate({
-      path: 'clients',
-      model: 'Client',
-    });
+  async generateExcelFile(): Promise<void> {
+    try {
+      const data = await this.sheetsFileGoogle();
+      const filteredData = data.filter(row => row[6] === 'SI');
 
-    const excelData = [];
+      // Map filtered data to match the template
+      const wsData = filteredData.map(item => [
+          item[0],  // nombre
+          '',  // apellido (assuming DNI is to be split)
+          item[3],  // email
+          '',  // localizador
+          1,  // cantidad
+          ''        // seat (assuming seat is not provided in the original data)
+      ]);
 
-    for (const vou of vouchers) {
-      for (const cli of vou.clients) {
-        if (!cli.ticket) {
-          const addToExcel = {
-            nombre: cli.fullName,
-            dni: cli.dni,
-            sexo: cli.sexo,
-            email: vou.email.toLowerCase(),
-            comprobante: vou.url,
-            cantidad: vou.clients.length,
-            checkeado: '',
-          };
-          excelData.push(addToExcel);
-        }
-      }
+      // Define headers
+      const headers = ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat'];
+
+      const excelData = [headers, ...wsData];
+      const resource = { values: excelData };
+
+      return await this.writeGoogleSheet(resource);
+    } catch (error) {
+      console.error('Error generating Excel file:', error);
+      throw error;
     }
-
-    const flatData = excelData.flat();
-
-    const headers = ['Nombre y Apellido', 'DNI', 'Sexo', 'Mail', 'Comprobante', 'Cantidad', 'Pago?', 'Dudoso', 'Mail mandado'];
-    const values = flatData.map((row: any) => Object.values(row));
-
-    const data = [headers, ...values];
-    const resource = { values: data };
-    await this.writeGoogleSheet(resource)
-    // Create a new workbook
-    const wb = xlsx.utils.book_new();
-
-    // Convert data to worksheet format
-    const ws = xlsx.utils.json_to_sheet(flatData);
-
-    // Add the worksheet to the workbook
-    xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
-
-    // Write the workbook to a buffer
-    const buffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
-    return buffer;
   }
 
   async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
@@ -363,17 +345,19 @@ export class TicketService {
     try {
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `entradas!${range}`,
+        range: `enviadas!${range}`,
         valueInputOption: 'RAW',
         requestBody: {
-          range: `entradas!${range}`,
+          range: `enviadas!${range}`,
           majorDimension: 'ROWS',
           values: resource.values,
         },
       });
       console.log('Data successfully written to Google Sheets.');
+      return;
     } catch (error) {
       console.error('Error writing data to Google Sheets:', error);
+      return;
     }
   }
 
@@ -465,5 +449,39 @@ export class TicketService {
         console.error('Error writing data to Google Sheets:', error);
       }
     }
+  }
+
+  async generateExcelTickets(data) {
+
+
+    const wb = xlsx.utils.book_new();
+
+    // Define the worksheet data
+    const wsData = [
+      ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat']
+    ];
+
+    // Map data to match the template
+    data.forEach(item => {
+      wsData.push([
+        item.fullName,
+        '', // Assuming no last name in your example
+        item.email,
+        '', // Assuming no locator in your example
+        1, // Always set cantidad to 1
+        '' // Assuming no seat info in your example
+      ]);
+    });
+
+    // Create a new worksheet with the data
+    const ws = xlsx.utils.aoa_to_sheet(wsData);
+
+    // Add the worksheet to the workbook
+    xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
+
+    // Write the workbook to a buffer
+    const buffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    return buffer;
   }
 }

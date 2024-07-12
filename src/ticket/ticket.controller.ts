@@ -93,11 +93,7 @@ export class TicketController {
 
   @Get('download')
   async downloadExcel(@Res() res: Response): Promise<void> {
-    const buffer = await this.ticketService.generateExcelFile();
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=entradas.xlsx');
-    res.send(buffer);
+    return await this.ticketService.generateExcelFile();
   }
 
   @Get('sheets')
