@@ -150,7 +150,7 @@ export class TicketService {
       const wsData = filteredData.map(item => [
         item[0],  // nombre
         '',  // apellido (assuming DNI is to be split)
-        item[3],  // email
+        item[3].toLowerCase(),  // email
         '',  // localizador
         1,  // cantidad
         ''  // seat (assuming seat is not provided in the original data)
@@ -165,7 +165,7 @@ export class TicketService {
       let sheet = 'enviadas';
       await this.writeGoogleSheet(resource, sheet);
 
-      sheet = 'entradasactualizadas';
+      sheet = 'entradas';
       const updatedData = this.updateSentColumn(data);
       resource = { values: updatedData };
       await this.writeGoogleSheet(resource, sheet);
