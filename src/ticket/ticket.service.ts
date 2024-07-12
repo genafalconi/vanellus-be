@@ -352,8 +352,7 @@ export class TicketService {
       range: `${tabName}!${range}`,
     });
 
-    const numRows = res.data.values ? res.data.values.length : 0;
-    return numRows + 1;
+    return res.data.values;
   }
 
   async writeGoogleSheet(resource: any) {
@@ -367,7 +366,7 @@ export class TicketService {
         range: `entradas!${range}`,
         valueInputOption: 'RAW',
         requestBody: {
-          range:  `entradas!${range}`,
+          range: `entradas!${range}`,
           majorDimension: 'ROWS',
           values: resource.values,
         },
@@ -382,21 +381,89 @@ export class TicketService {
     const sheets = await this.createGoogleClient();
     const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
     const range = 'A:H';
+    const data = await this.sheetsFileGoogle();
 
-    try {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: range,
-        valueInputOption: 'RAW',
-        requestBody: {
+    const existingEntries = data.map(row => ({
+      fullName: row[0].trim().toLowerCase(),
+      email: row[3].trim().toLowerCase()
+    }));
+
+    const newEntryExists = resource.values.some(newEntry => {
+      const [fullName, , , email] = newEntry;
+      return existingEntries.some(entry =>
+        entry.fullName === fullName.trim().toLowerCase() &&
+        entry.email === email.trim().toLowerCase()
+      );
+    });
+
+    if (newEntryExists) {
+      console.log('Duplicate entry found. Adding with red background.');
+
+      try {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId,
           range: range,
-          majorDimension: 'ROWS',
-          values: resource.values,
-        },
-      });
-      console.log('Data successfully written to Google Sheets.');
-    } catch (error) {
-      console.error('Error writing data to Google Sheets:', error);
+          valueInputOption: 'RAW',
+          requestBody: {
+            range: range,
+            majorDimension: 'ROWS',
+            values: resource.values,
+          },
+        });
+
+        const startRow = data.length;
+        const endRow = startRow + resource.values.length;
+
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: {
+            requests: [
+              {
+                repeatCell: {
+                  range: {
+                    startRowIndex: startRow,
+                    endRowIndex: endRow,
+                    startColumnIndex: 0,
+                    endColumnIndex: 8,
+                  },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: {
+                        red: 1.0,
+                        green: 0.0,
+                        blue: 0.0
+                      }
+                    }
+                  },
+                  fields: 'userEnteredFormat.backgroundColor'
+                }
+              }
+            ]
+          }
+        });
+
+        console.log('Data successfully written to Google Sheets with red background.');
+      } catch (error) {
+        console.error('Error writing data to Google Sheets:', error);
+      }
+    } else {
+      console.log('No duplicate entry found. Adding normally.');
+
+      try {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId,
+          range: range,
+          valueInputOption: 'RAW',
+          requestBody: {
+            range: range,
+            majorDimension: 'ROWS',
+            values: resource.values,
+          },
+        });
+        console.log('Data successfully written to Google Sheets.');
+      } catch (error) {
+        console.error('Error writing data to Google Sheets:', error);
+      }
     }
   }
 }
