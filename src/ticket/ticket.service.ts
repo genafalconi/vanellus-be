@@ -144,7 +144,7 @@ export class TicketService {
   async generateExcelFile(): Promise<boolean> {
     try {
       const data = await this.sheetsFileGoogle();
-      const filteredData = data.filter(row => row[6] === 'SI' && row[8] === 'NO');
+      const filteredData = data.filter(row => row[6].toLowerCase() === 'SI'.toLowerCase() && row[8].toLowerCase() === 'NO'.toLowerCase());
 
       // Map filtered data to match the template
       const wsData = filteredData.map(item => [
@@ -163,6 +163,7 @@ export class TicketService {
       let resource = { values: excelData };
 
       let sheet = 'enviadas';
+      await this.clearGoogleSheet(sheet)
       await this.writeGoogleSheet(resource, sheet);
 
       sheet = 'entradas';
@@ -179,7 +180,7 @@ export class TicketService {
 
   updateSentColumn(data) {
     for (let i = 1; i < data.length; i++) {
-      if (data[i][8] === 'NO' && data[i][6] !== 'NO') {
+      if (data[i][8].toLowerCase() === 'NO'.toLowerCase() && data[i][6].toLowerCase() === 'SI'.toLowerCase()) {
         data[i][8] = 'SI';
       }
     }
@@ -374,6 +375,24 @@ export class TicketService {
       return;
     } catch (error) {
       console.error('Error writing data to Google Sheets:', error);
+      return;
+    }
+  }
+
+  async clearGoogleSheet(sheet: any) {
+    const sheets = await this.createGoogleClient();
+    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const range = 'A:Z';
+
+    try {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: sheetId,
+        range: `${sheet}!${range}`,
+      });
+      console.log('Data successfully cleared from Google Sheets.');
+      return;
+    } catch (error) {
+      console.error('Error clearing data from Google Sheets:', error);
       return;
     }
   }
