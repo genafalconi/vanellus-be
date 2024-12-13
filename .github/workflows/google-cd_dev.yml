@@ -60,6 +60,6 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.IMAGE_NAME }}:latest
           region: ${{ env.REGION }}
-          flags: '--port=4001 --allow-unauthenticated --cpu=1'
+          flags: '--port=4001 --allow-unauthenticated --cpu=1 --max-instances=1'
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
