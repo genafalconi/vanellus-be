@@ -73,7 +73,7 @@ export class TicketService {
         cli.dni,
         cli.sexo,
         newComprobante?.email,
-        newComprobante?.url,
+        newComprobante?.url || 'no url',
         parsedClients.length,
         'NO'
       ]);
@@ -394,7 +394,6 @@ export class TicketService {
   }
 
   async appendGoogleSheet(resource: any) {
-    console.log(resource)
     const sheets = await this.createGoogleClient();
     const sheetId = this.sheetId;
     const range = 'A:H';
