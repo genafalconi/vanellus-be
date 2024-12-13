@@ -17,7 +17,7 @@ export class Voucher extends Document {
   @Prop({ required: true })
   total: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: 'example' })
   url: string;
 
   @Prop({ required: true })

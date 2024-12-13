@@ -21,18 +21,16 @@ import { Voucher } from 'src/schema/voucher.schema';
 import { sendEmail } from 'src/helpers/node-mailer';
 import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import * as xlsx from 'xlsx';
-import * as path from 'path';
-import * as fs from 'fs';
-import { google, sheets_v4 } from 'googleapis';
+import { google } from 'googleapis';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
-import { auth, OAuth2Client } from 'google-auth-library';
-import { firebaseAdminConfig } from 'src/firebase/firebaseAdmin';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class TicketService {
   private oAuth2Client: OAuth2Client;
   private sheets: any;
+  private sheetId: string = '1_g2PSszdvdv1tA7lCL1cOMpsmpJPG0R2m81gQqq7g2Q';
 
   constructor(
     @InjectModel(Ticket.name)
@@ -48,46 +46,44 @@ export class TicketService {
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = [];
     const parsedClients: Array<ClientDataDto> = ticketsData.clients;
-    // const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
+    const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
+ 
+    if (prevent.active) {
+      for (const cli of parsedClients) {
+        const newClient = new this.clientModel({
+          fullName: cli.fullName,
+          dni: cli.dni,
+          sexo: cli.sexo
+        });
 
-    // if (prevent.active) {
-    for (const cli of parsedClients) {
-      const newClient = new this.clientModel({
-        fullName: cli.fullName,
-        dni: cli.dni,
-        sexo: cli.sexo
+        const saved = await this.clientModel.create(newClient);
+        clientSaved.push(saved._id);
+      }
+
+      const newComprobante = new this.voucherModel({
+        clients: clientSaved,
+        email: ticketsData.email,
+        prevent: new Types.ObjectId(ticketsData.prevent),
+        total: ticketsData.total,
+        url: ticketsData.cloudinaryUrl,
+        active: true,
       });
+      const values = parsedClients.map(cli => [
+        cli.fullName,
+        cli.dni,
+        cli.sexo,
+        newComprobante?.email,
+        newComprobante?.url,
+        parsedClients.length,
+        'NO'
+      ]);
+      const resource = { values };
+      await this.appendGoogleSheet(resource);
 
-      const saved = await this.clientModel.create(newClient);
-      clientSaved.push(saved._id);
+      return await this.voucherModel.create(newComprobante);
+    } else {
+      throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
     }
-
-    const newComprobante = new this.voucherModel({
-      clients: clientSaved,
-      email: ticketsData.email,
-      prevent: new Types.ObjectId(ticketsData.prevent),
-      total: ticketsData.total,
-      url: ticketsData.cloudinaryUrl,
-      active: true,
-    });
-    const values = parsedClients.map(cli => [
-      cli.fullName,
-      cli.dni,
-      cli.sexo,
-      newComprobante.email,
-      newComprobante.url,
-      parsedClients.length,
-      '',
-      '',
-      'NO'
-    ]);
-    const resource = { values };
-    await this.appendGoogleSheet(resource);
-
-    return await this.voucherModel.create(newComprobante);
-    // } else {
-    //   throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
-    // }
   }
 
   async getTickets(prevent: string): Promise<Array<Voucher>> {
@@ -166,7 +162,7 @@ export class TicketService {
       await this.clearGoogleSheet(sheet)
       await this.writeGoogleSheet(resource, sheet);
 
-      sheet = 'entradas';
+      sheet = 'entradasactualizadas';
       const updatedData = this.updateSentColumn(data);
       resource = { values: updatedData };
       await this.writeGoogleSheet(resource, sheet);
@@ -291,7 +287,7 @@ export class TicketService {
     const ticketsToSend: Array<string> = [];
     for (const cli of clients) {
       const nameAndQrTicket = `Nombre: ${cli.fullName}, DNI: ${cli.dni}
-      <img style="width: 150px; object-fit: cover;" src="${cli.ticket.url}" alt="QRcode" />`;
+      <img style="width: 150px; object-fit: cover;" src="${cli.ticket?.url}" alt="QRcode" />`;
       ticketsToSend.push(nameAndQrTicket);
     }
     return this.parseClientTickets(ticketsToSend);
@@ -330,7 +326,7 @@ export class TicketService {
       throw new Error(`Failed to get token: ${error.message}`);
     }
   }
-
+// EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
   async createGoogleClient() {
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
@@ -342,7 +338,7 @@ export class TicketService {
   }
 
   async sheetsFileGoogle() {
-    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const sheetId = this.sheetId;
     const tabName = 'entradas';
     const range = 'A:Z';
     const googleSheetClient = await this.createGoogleClient();
@@ -357,7 +353,7 @@ export class TicketService {
 
   async writeGoogleSheet(resource: any, sheet: any) {
     const sheets = await this.createGoogleClient();
-    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const sheetId = this.sheetId;
     const range = 'A:Z';
 
     try {
@@ -381,7 +377,7 @@ export class TicketService {
 
   async clearGoogleSheet(sheet: any) {
     const sheets = await this.createGoogleClient();
-    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const sheetId = this.sheetId
     const range = 'A:Z';
 
     try {
@@ -398,8 +394,9 @@ export class TicketService {
   }
 
   async appendGoogleSheet(resource: any) {
+    console.log(resource)
     const sheets = await this.createGoogleClient();
-    const sheetId = '1lK1Xd8kBR0QQs3_VprTawUpBFjZydFQfB6O_y9xDVdI';
+    const sheetId = this.sheetId;
     const range = 'A:H';
     const data = await this.sheetsFileGoogle();
 
