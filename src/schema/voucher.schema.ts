@@ -17,11 +17,11 @@ export class Voucher extends Document {
   @Prop({ required: true })
   total: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: 'no url' })
   url: string;
 
   @Prop({ required: true })
-  active: boolean;
+  active: boolean; 
 
   @Prop({ required: true, default: false })
   sent: boolean;
