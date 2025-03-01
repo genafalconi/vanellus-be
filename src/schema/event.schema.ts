@@ -25,7 +25,7 @@ export class Event extends Document {
   @Prop({ required: true, default: true })
   active: boolean;
 
-  @Prop([{ type: Types.ObjectId, ref: 'Prevent', required: true }])
+  @Prop([{ type: Types.ObjectId, ref: 'Prevent', required: true }]) 
   prevents: Prevent[];
 }
 
