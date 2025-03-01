@@ -25,12 +25,13 @@ import { google } from 'googleapis';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
 import { OAuth2Client } from 'google-auth-library';
+import { Event } from 'src/schema/event.schema';
 
 @Injectable()
 export class TicketService {
   private oAuth2Client: OAuth2Client;
   private sheets: any;
-  private sheetId: string = '1_g2PSszdvdv1tA7lCL1cOMpsmpJPG0R2m81gQqq7g2Q';
+  private sheetId: string = '1UdKuIPL1AAfgSjzowE9Mg8wUDDtTM6y3TtPXsOIvAsA';
 
   constructor(
     @InjectModel(Ticket.name)
@@ -41,13 +42,15 @@ export class TicketService {
     private readonly preventModel: Model<Prevent>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
+    @InjectModel(Event.name)
+    private readonly eventModel: Model<Event>,
   ) { }
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = [];
     const parsedClients: Array<ClientDataDto> = ticketsData.clients;
     const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
- 
+
     if (prevent.active) {
       for (const cli of parsedClients) {
         const newClient = new this.clientModel({
@@ -57,7 +60,7 @@ export class TicketService {
         });
 
         const saved = await this.clientModel.create(newClient);
-        clientSaved.push(saved._id);
+        clientSaved.push(saved);
       }
 
       const newComprobante = new this.voucherModel({
@@ -73,13 +76,25 @@ export class TicketService {
         cli.dni,
         cli.sexo,
         newComprobante?.email,
-        newComprobante?.url,
+        newComprobante?.url || 'no url',
         parsedClients.length,
-        'NO'
+        'NO',
+        prevent.name
       ]);
       const resource = { values };
-      await this.appendGoogleSheet(resource);
+      // Wait for the Google Sheet to be updated.
+      try {
+        const sheetResult = await this.appendGoogleSheet(resource);
+        if (!sheetResult) {
+          this.clientModel.deleteMany({ _id: { $in: clientSaved.map(c => c._id) } });
+          throw new HttpException('Failed to update Google Sheet', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+      } catch (error) {
+        this.clientModel.deleteMany({ _id: { $in: clientSaved.map(c => c._id) } });
+        throw new HttpException('Error updating Google Sheet: ' + error, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
 
+      // Once the Google Sheet update is successful, save the voucher in the DB.
       return await this.voucherModel.create(newComprobante);
     } else {
       throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
@@ -205,13 +220,11 @@ export class TicketService {
       ticketClient.url = qrUrl;
 
       const [clientUpdate, ticketNew] = await Promise.all([
-        this.clientModel
-          .findByIdAndUpdate(
-            new Types.ObjectId(cli._id),
-            { $set: { ticket: new Types.ObjectId(ticketClient._id) } },
-            { new: true },
-          )
-          .populate({ path: 'ticket', model: 'Ticket' }),
+        this.clientModel.findByIdAndUpdate(
+          new Types.ObjectId(cli._id as string),
+          { $set: { ticket: new Types.ObjectId(ticketClient._id as string) } },
+          { new: true },
+        ).populate({ path: 'ticket', model: 'Ticket' }),
         this.ticketModel.create(ticketClient),
       ]);
 
@@ -249,7 +262,7 @@ export class TicketService {
 
     for (const prev of prevents) {
       const vouchers = await this.voucherModel.find({
-        prevent: new Types.ObjectId(prev._id),
+        prevent: new Types.ObjectId(prev._id as string),
       });
       const totalClients = vouchers.reduce(
         (total, voucher) => total + voucher.clients.length,
@@ -264,6 +277,10 @@ export class TicketService {
 
   async getActivePrevent(): Promise<Prevent> {
     return await this.preventModel.findOne({ active: true });
+  }
+
+  async getEvent(): Promise<Event> {
+    return await this.eventModel.findOne({ active: true });
   }
 
   async sendUnauthEmail(unauthMail: string) {
@@ -326,7 +343,7 @@ export class TicketService {
       throw new Error(`Failed to get token: ${error.message}`);
     }
   }
-// EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
+  // EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
   async createGoogleClient() {
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
@@ -339,7 +356,7 @@ export class TicketService {
 
   async sheetsFileGoogle() {
     const sheetId = this.sheetId;
-    const tabName = 'entradas';
+    const tabName = 'solo-lectura';
     const range = 'A:Z';
     const googleSheetClient = await this.createGoogleClient();
 
@@ -377,7 +394,7 @@ export class TicketService {
 
   async clearGoogleSheet(sheet: any) {
     const sheets = await this.createGoogleClient();
-    const sheetId = this.sheetId
+    const sheetId = this.sheetId;
     const range = 'A:Z';
 
     try {
@@ -393,94 +410,102 @@ export class TicketService {
     }
   }
 
-  async appendGoogleSheet(resource: any) {
-    console.log(resource)
-    const sheets = await this.createGoogleClient();
-    const sheetId = this.sheetId;
-    const range = 'A:H';
-    const data = await this.sheetsFileGoogle();
+  async appendGoogleSheet(resource: any): Promise<boolean> {
+    try {
+      const sheets = await this.createGoogleClient();
+      const sheetId = this.sheetId;
+      const range = 'A:Z';
+      const data = await this.sheetsFileGoogle();
 
-    const existingEntries = data.map(row => ({
-      fullName: row[0].trim().toLowerCase(),
-      email: row[3].trim().toLowerCase()
-    }));
+      const existingEntries = data.map(row => ({
+        fullName: row[0]?.trim()?.toLowerCase(),
+        email: row[3]?.trim()?.toLowerCase()
+      }));
 
-    const newEntryExists = resource.values.some(newEntry => {
-      const [fullName, , , email] = newEntry;
-      return existingEntries.some(entry =>
-        entry.fullName === fullName.trim().toLowerCase() &&
-        entry.email === email.trim().toLowerCase()
-      );
-    });
+      const newEntryExists = resource.values.some(newEntry => {
+        const [fullName, , , email] = newEntry;
+        return existingEntries.some(entry =>
+          entry.fullName === fullName?.trim()?.toLowerCase() &&
+          entry.email === email?.trim()?.toLowerCase()
+        );
+      });
 
-    if (newEntryExists) {
-      console.log('Duplicate entry found. Adding with red background.');
+      if (newEntryExists) {
+        console.log('Duplicate entry found. Adding with red background.');
 
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: sheetId,
-          range: range,
-          valueInputOption: 'RAW',
-          requestBody: {
+        try {
+          await sheets.spreadsheets.values.append({
+            spreadsheetId: sheetId,
             range: range,
-            majorDimension: 'ROWS',
-            values: resource.values,
-          },
-        });
+            valueInputOption: 'RAW',
+            requestBody: {
+              range: range,
+              majorDimension: 'ROWS',
+              values: resource.values,
+            },
+          });
 
-        const startRow = data.length;
-        const endRow = startRow + resource.values.length;
+          const startRow = data.length;
+          const endRow = startRow + resource.values.length;
 
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId: sheetId,
-          requestBody: {
-            requests: [
-              {
-                repeatCell: {
-                  range: {
-                    startRowIndex: startRow,
-                    endRowIndex: endRow,
-                    startColumnIndex: 0,
-                    endColumnIndex: 8,
-                  },
-                  cell: {
-                    userEnteredFormat: {
-                      backgroundColor: {
-                        red: 1.0,
-                        green: 0.0,
-                        blue: 0.0
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+              requests: [
+                {
+                  repeatCell: {
+                    range: {
+                      startRowIndex: startRow,
+                      endRowIndex: endRow,
+                      startColumnIndex: 0,
+                      endColumnIndex: 8,
+                    },
+                    cell: {
+                      userEnteredFormat: {
+                        backgroundColor: {
+                          red: 1.0,
+                          green: 0.0,
+                          blue: 0.0
+                        }
                       }
-                    }
-                  },
-                  fields: 'userEnteredFormat.backgroundColor'
+                    },
+                    fields: 'userEnteredFormat.backgroundColor'
+                  }
                 }
-              }
-            ]
-          }
-        });
+              ]
+            }
+          });
 
-        console.log('Data successfully written to Google Sheets with red background.');
-      } catch (error) {
-        console.error('Error writing data to Google Sheets:', error);
-      }
-    } else {
-      console.log('No duplicate entry found. Adding normally.');
+          console.log('Data successfully written to Google Sheets with red background.');
+          return true;
+        } catch (error) {
+          console.error('Error writing data to Google Sheets:', error);
+          return false;
+        }
+      } else {
+        console.log('No duplicate entry found. Adding normally.');
 
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: sheetId,
-          range: range,
-          valueInputOption: 'RAW',
-          requestBody: {
+        try {
+          await sheets.spreadsheets.values.append({
+            spreadsheetId: sheetId,
             range: range,
-            majorDimension: 'ROWS',
-            values: resource.values,
-          },
-        });
-        console.log('Data successfully written to Google Sheets.');
-      } catch (error) {
-        console.error('Error writing data to Google Sheets:', error);
+            valueInputOption: 'RAW',
+            requestBody: {
+              range: range,
+              majorDimension: 'ROWS',
+              values: resource.values,
+            },
+          });
+          console.log('Data successfully written to Google Sheets.');
+          return true;
+        } catch (error) {
+          console.error('Error writing data to Google Sheets:', error);
+          return false;
+        }
       }
+    } catch (error) {
+      console.log('error writing data to Google Sheets:', error);
+      return false;
     }
   }
 
