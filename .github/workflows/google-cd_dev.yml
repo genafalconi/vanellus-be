@@ -10,8 +10,8 @@ jobs:
     name: Build and Push to GCP
     runs-on: ubuntu-latest
     env:
-      PROJECT_ID: vanelluss-csb
-      REGION: us-central1
+      PROJECT_ID: project-envuelto
+      REGION: southamerica-east1
       GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
     steps:
@@ -38,8 +38,8 @@ jobs:
 
       - name: Set IMAGE_NAME and SERVICE_NAME
         run: |
-          echo "IMAGE_NAME=vanellus-be" >> $GITHUB_ENV
-          echo "SERVICE_NAME=vanellus-be" >> $GITHUB_ENV
+          echo "IMAGE_NAME=envuelto-be" >> $GITHUB_ENV
+          echo "SERVICE_NAME=envuelto-be" >> $GITHUB_ENV
 
       - name: Build Docker Image
         run: docker build -t ${{ env.IMAGE_NAME }}:latest . ${{ env.BUILD_ARGS }}

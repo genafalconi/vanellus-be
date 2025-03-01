@@ -21,6 +21,7 @@ import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { CustomRequest } from 'src/firebase/customRequest';
+import { Event } from 'src/schema/event.schema';
 
 @Controller('ticket')
 export class TicketController {
@@ -72,6 +73,11 @@ export class TicketController {
   @Get('/get-active-prevent')
   async getActivePrevent(): Promise<Prevent> {
     return await this.ticketService.getActivePrevent();
+  }
+
+  @Get('/event')
+  async getEventData(): Promise<Event> {
+    return await this.ticketService.getEvent();
   }
 
   @Post('/email/unauthorized')
