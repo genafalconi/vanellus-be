@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TicketModule } from './ticket/ticket.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ComprobanteModule } from './comprobante/comprobante.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       inject: [ConfigService],
     }),
     TicketModule,
+    ComprobanteModule,
   ],
   controllers: [],
   providers: [],

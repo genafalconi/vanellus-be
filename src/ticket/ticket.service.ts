@@ -30,7 +30,7 @@ import { OAuth2Client } from 'google-auth-library';
 export class TicketService {
   private oAuth2Client: OAuth2Client;
   private sheets: any;
-  private sheetId: string = '1_g2PSszdvdv1tA7lCL1cOMpsmpJPG0R2m81gQqq7g2Q';
+  private sheetId: string = '1UdKuIPL1AAfgSjzowE9Mg8wUDDtTM6y3TtPXsOIvAsA';
 
   constructor(
     @InjectModel(Ticket.name)
@@ -41,13 +41,13 @@ export class TicketService {
     private readonly preventModel: Model<Prevent>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
-  ) { }
+  ) {}
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = [];
     const parsedClients: Array<ClientDataDto> = ticketsData.clients;
     const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
- 
+
     if (prevent.active) {
       for (const cli of parsedClients) {
         const newClient = new this.clientModel({
@@ -75,7 +75,8 @@ export class TicketService {
         newComprobante?.email,
         newComprobante?.url || 'no url',
         parsedClients.length,
-        'NO'
+        'NO',
+        `=IMAGE("${newComprobante.url}")`
       ]);
       const resource = { values };
       await this.appendGoogleSheet(resource);
@@ -326,7 +327,7 @@ export class TicketService {
       throw new Error(`Failed to get token: ${error.message}`);
     }
   }
-// EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
+  // EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
   async createGoogleClient() {
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
@@ -339,7 +340,7 @@ export class TicketService {
 
   async sheetsFileGoogle() {
     const sheetId = this.sheetId;
-    const tabName = 'entradas';
+    const tabName = 'solo-lectura';
     const range = 'A:Z';
     const googleSheetClient = await this.createGoogleClient();
 
@@ -396,19 +397,19 @@ export class TicketService {
   async appendGoogleSheet(resource: any) {
     const sheets = await this.createGoogleClient();
     const sheetId = this.sheetId;
-    const range = 'A:H';
+    const range = 'A:I';
     const data = await this.sheetsFileGoogle();
 
     const existingEntries = data.map(row => ({
-      fullName: row[0].trim().toLowerCase(),
-      email: row[3].trim().toLowerCase()
+      fullName: row[0]?.trim()?.toLowerCase(),
+      email: row[3]?.trim()?.toLowerCase()
     }));
 
     const newEntryExists = resource.values.some(newEntry => {
       const [fullName, , , email] = newEntry;
       return existingEntries.some(entry =>
-        entry.fullName === fullName.trim().toLowerCase() &&
-        entry.email === email.trim().toLowerCase()
+        entry.fullName === fullName?.trim()?.toLowerCase() &&
+        entry.email === email?.trim()?.toLowerCase()
       );
     });
 
@@ -419,7 +420,7 @@ export class TicketService {
         await sheets.spreadsheets.values.append({
           spreadsheetId: sheetId,
           range: range,
-          valueInputOption: 'RAW',
+          valueInputOption: 'USER_ENTERED',
           requestBody: {
             range: range,
             majorDimension: 'ROWS',
@@ -469,7 +470,7 @@ export class TicketService {
         await sheets.spreadsheets.values.append({
           spreadsheetId: sheetId,
           range: range,
-          valueInputOption: 'RAW',
+          valueInputOption: 'USER_ENTERED',
           requestBody: {
             range: range,
             majorDimension: 'ROWS',

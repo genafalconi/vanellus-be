@@ -6,7 +6,6 @@ import {
   Post,
   Query,
   Req,
-  Res,
   UseGuards,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
@@ -22,7 +21,6 @@ import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import { LoginDto, SecurityDto } from 'src/data/login.dto';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
 import { CustomRequest } from 'src/firebase/customRequest';
-import { Response } from 'express';
 
 @Controller('ticket')
 export class TicketController {
