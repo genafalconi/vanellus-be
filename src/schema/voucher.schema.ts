@@ -15,7 +15,7 @@ export class Voucher extends Document {
   prevent: Prevent;
 
   @Prop({ required: true })
-  total: number;
+  total: number; 
 
   @Prop({ required: true, default: 'no url' })
   url: string;
