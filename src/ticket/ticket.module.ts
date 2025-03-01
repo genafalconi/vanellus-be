@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { CloudinaryProvider } from 'src/helpers/cloudinary.config';
 import { Voucher, VoucherSchema } from 'src/schema/voucher.schema';
 import { Prevent, PreventSchema } from 'src/schema/prevent.schema';
+import { EventSchema } from 'src/schema/event.schema';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Prevent, PreventSchema } from 'src/schema/prevent.schema';
       { name: Client.name, schema: ClientSchema },
       { name: Voucher.name, schema: VoucherSchema },
       { name: Prevent.name, schema: PreventSchema },
+      { name: Event.name, schema: EventSchema },
     ]),
     ConfigModule,
   ],
