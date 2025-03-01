@@ -279,7 +279,7 @@ export class TicketService {
     return await this.preventModel.findOne({ active: true });
   }
 
-  async getEvent(): Promise<Event> {
+  async getEvent(): Promise<Event> { 
     return await this.eventModel.findOne({ active: true });
   }
 
