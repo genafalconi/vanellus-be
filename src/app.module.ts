@@ -3,6 +3,10 @@ import { TicketModule } from './ticket/ticket.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ComprobanteModule } from './comprobante/comprobante.module';
+import { QrModule } from './qr/qr.module';
+import { PreventModule } from './prevent/prevent.module';
+import { EventModule } from './event/event.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { ComprobanteModule } from './comprobante/comprobante.module';
     }),
     TicketModule,
     ComprobanteModule,
+    QrModule,
+    PreventModule,
+    EventModule,
+    SecurityModule,
   ],
   controllers: [],
   providers: [],

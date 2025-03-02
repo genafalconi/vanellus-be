@@ -1,49 +1,27 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import * as qrcode from 'qrcode';
-import {
-  ClientDataDto,
-  BuyTicketsDataDto,
-  PreventDataDto,
-  PreventTotalsDto,
-  MailDataDto,
-  FROM_EMAIL,
-  SubjectDto,
-  FlyerLink,
-  WppLink,
-} from 'src/data/client.dto';
-import { Ticket } from 'src/schema/ticket.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Client } from 'src/schema/client.schema';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Prevent } from 'src/schema/prevent.schema';
-import { Voucher } from 'src/schema/voucher.schema';
-import { sendEmail } from 'src/helpers/node-mailer';
-import { CreateTicketsDto, TicketSendDto } from 'src/data/ticket.dto';
 import * as xlsx from 'xlsx';
 import { google } from 'googleapis';
-import { LoginDto, SecurityDto } from 'src/data/login.dto';
-import { firebaseAuth, firebaseClientAuth } from 'src/firebase/firebase.app';
-import { OAuth2Client } from 'google-auth-library';
-import { Event } from 'src/schema/event.schema';
+import {
+  BuyTicketsDataDto,
+  ClientDataDto,
+} from 'src/data/client.dto';
+import { Client } from 'src/schema/client.schema';
+import { Prevent } from 'src/schema/prevent.schema';
+import { Voucher } from 'src/schema/voucher.schema';
 
 @Injectable()
 export class TicketService {
-  private oAuth2Client: OAuth2Client;
-  private sheets: any;
   private sheetId: string = '1UdKuIPL1AAfgSjzowE9Mg8wUDDtTM6y3TtPXsOIvAsA';
 
   constructor(
-    @InjectModel(Ticket.name)
-    private readonly ticketModel: Model<Ticket>,
     @InjectModel(Client.name)
     private readonly clientModel: Model<Client>,
     @InjectModel(Prevent.name)
     private readonly preventModel: Model<Prevent>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
-    @InjectModel(Event.name)
-    private readonly eventModel: Model<Event>,
   ) { }
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
@@ -79,6 +57,7 @@ export class TicketService {
         newComprobante?.url || 'no url',
         parsedClients.length,
         'NO',
+        'NO',
         prevent.name
       ]);
       const resource = { values };
@@ -104,77 +83,29 @@ export class TicketService {
   async getTickets(prevent: string): Promise<Array<Voucher>> {
     return await this.voucherModel
       .find({ prevent: new Types.ObjectId(prevent) })
-      .populate({
-        path: 'clients',
-        model: 'Client',
-        // populate: {
-        //   path: 'ticket',
-        //   model: 'Ticket'
-        // }
-      });
-  }
-
-  async verifyToken(token: string): Promise<boolean> {
-    try {
-      token = token.split(' ')[1];
-      if (token !== 'null') {
-        const tokenValidation = await firebaseAuth.verifyIdToken(token);
-        return !!tokenValidation;
-      } else {
-        return false;
-      }
-    } catch (error: any) {
-      throw new HttpException(
-        `Failed to verify token: ${error.message}`,
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-  }
-
-  async createQrCode(ticketsData: CreateTicketsDto): Promise<Array<Client>> {
-    const ticketsToSend = await this.generateInvitationCode(
-      ticketsData.clients,
-    );
-    // await this.sendAuthEmail({ mailTo: ticketsData.email, clients: ticketsToSend })
-    return ticketsToSend;
-  }
-
-  async sendEmails(): Promise<any> {
-    const vouchers = await this.voucherModel.find();
-    const maxIterations = 300;
-    const startIndex = 0;
-
-    for (const vou of vouchers.slice(startIndex, maxIterations)) {
-      const ticketsToSend = await this.generateInvitationCode(vou.clients);
-      await this.sendAuthEmail({ mailTo: vou.email, clients: ticketsToSend });
-    }
-
-    return 'Mandados';
+      .populate({ path: 'clients', model: 'Client' });
   }
 
   async generateExcelFile(): Promise<boolean> {
     try {
       const data = await this.sheetsFileGoogle();
-      const filteredData = data.filter(row => row[6].toLowerCase() === 'SI'.toLowerCase() && row[8].toLowerCase() === 'NO'.toLowerCase());
+      const filteredData = data.filter(row => row[6].toLowerCase() === 'si' && row[8].toLowerCase() === 'no');
 
-      // Map filtered data to match the template
       const wsData = filteredData.map(item => [
-        item[0],  // nombre
-        '',  // apellido (assuming DNI is to be split)
-        item[3].toLowerCase(),  // email
-        '',  // localizador
-        1,  // cantidad
-        ''  // seat (assuming seat is not provided in the original data)
+        item[0], // nombre
+        '',     // apellido
+        item[3].toLowerCase(), // email
+        '',     // localizador
+        1,      // cantidad
+        ''      // seat
       ]);
 
-      // Define headers
       const headers = ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat'];
-
       const excelData = [headers, ...wsData];
       let resource = { values: excelData };
 
       let sheet = 'enviadas';
-      await this.clearGoogleSheet(sheet)
+      await this.clearGoogleSheet(sheet);
       await this.writeGoogleSheet(resource, sheet);
 
       sheet = 'entradasactualizadas';
@@ -189,161 +120,50 @@ export class TicketService {
     }
   }
 
-  updateSentColumn(data) {
+  updateSentColumn(data: any[]): any[] {
     for (let i = 1; i < data.length; i++) {
-      if (data[i][8].toLowerCase() === 'NO'.toLowerCase() && data[i][6].toLowerCase() === 'SI'.toLowerCase()) {
+      if (data[i][8].toLowerCase() === 'no' && data[i][6].toLowerCase() === 'si') {
         data[i][8] = 'SI';
       }
     }
     return data;
   }
 
-  async generateInvitationCode(clients: Array<Client>): Promise<Array<Client>> {
-    const clientsUpdated: Array<Client> = [];
+  async generateExcelTickets(data: any[]): Promise<Buffer> {
+    const wb = xlsx.utils.book_new();
+    const wsData = [
+      ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat']
+    ];
 
-    for (const cli of clients) {
-      const ticketClient = new this.ticketModel({
-        url: '',
-        used: false,
-        active: true,
-        sent: true,
-      });
-
-      const ticketData = JSON.stringify({
-        ticketId: ticketClient._id,
-        client: cli.fullName,
-        dni: cli.dni,
-        clientId: cli._id,
-      });
-      const qrUrl = await this.generateQrCode(ticketData);
-
-      ticketClient.url = qrUrl;
-
-      const [clientUpdate, ticketNew] = await Promise.all([
-        this.clientModel.findByIdAndUpdate(
-          new Types.ObjectId(cli._id as string),
-          { $set: { ticket: new Types.ObjectId(ticketClient._id as string) } },
-          { new: true },
-        ).populate({ path: 'ticket', model: 'Ticket' }),
-        this.ticketModel.create(ticketClient),
+    data.forEach(item => {
+      wsData.push([
+        item.fullName,
+        '',
+        item.email,
+        '',
+        1,
+        '',
       ]);
-
-      clientsUpdated.push(clientUpdate);
-    }
-
-    return clientsUpdated;
-  }
-
-  async generateQrCode(data: string): Promise<string> {
-    try {
-      const dataUrl = await qrcode.toDataURL(data, {
-        errorCorrectionLevel: 'H',
-      });
-      // const qrBuffer = await qrcode.toBuffer(data, { errorCorrectionLevel: 'H' });
-      // const dataUrl = `data:image/png;base64,${qrBuffer.toString('base64')}`;
-      return dataUrl;
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      throw error;
-    }
-  }
-  async createPrevent(prevent: PreventDataDto): Promise<Prevent> {
-    const preventCreated = new this.preventModel({
-      name: prevent.name,
-      price: prevent.price,
-      active: prevent.active,
     });
-    return await this.preventModel.create(preventCreated);
+
+    const ws = xlsx.utils.aoa_to_sheet(wsData);
+    xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
+    return xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
   }
 
-  async getPrevents(): Promise<Array<PreventTotalsDto>> {
-    const prevents = await this.preventModel.find();
-    const result: Array<PreventTotalsDto> = [];
+  async sheetsFileGoogle(): Promise<any[]> {
+    const tabName = 'solo-lectura';
+    const range = 'A:Z';
+    const googleSheetClient = await this.createGoogleClient();
 
-    for (const prev of prevents) {
-      const vouchers = await this.voucherModel.find({
-        prevent: new Types.ObjectId(prev._id as string),
-      });
-      const totalClients = vouchers.reduce(
-        (total, voucher) => total + voucher.clients.length,
-        0,
-      );
+    const res = await googleSheetClient.spreadsheets.values.get({
+      spreadsheetId: this.sheetId,
+      range: `${tabName}!${range}`,
+    });
 
-      result.push({ prevent: prev, totalClients });
-    }
-
-    return result;
+    return res.data.values;
   }
 
-  async getActivePrevent(): Promise<Prevent> {
-    return await this.preventModel.findOne({ active: true });
-  }
-
-  async getEvent(): Promise<Event> { 
-    return await this.eventModel.findOne({ active: true });
-  }
-
-  async sendUnauthEmail(unauthMail: string) {
-    const dataToEmail: MailDataDto = {
-      from: FROM_EMAIL,
-      to: unauthMail,
-      subject: SubjectDto.UNAUTH,
-      text: `Te comunicamos que no cumplis los requisitos de edad para asistir al evento.\n
-        FANTOM 9/12 \n
-        Te pedimos que te comuniques con <a href="${WppLink}">Mateo</a> para la devolucion de la plata!!\n
-        <img style="width: 200px; object-fit: cover;"  src="${FlyerLink}" alt="Flyer" />`,
-    };
-    return await sendEmail(dataToEmail);
-  }
-
-  parseClientTickets(ticketsToSend: Array<string>): Array<string> {
-    return ticketsToSend.map((elem) => `${elem}\n`);
-  }
-
-  getTicketData(clients: Array<Client>): Array<string> {
-    const ticketsToSend: Array<string> = [];
-    for (const cli of clients) {
-      const nameAndQrTicket = `Nombre: ${cli.fullName}, DNI: ${cli.dni}
-      <img style="width: 150px; object-fit: cover;" src="${cli.ticket?.url}" alt="QRcode" />`;
-      ticketsToSend.push(nameAndQrTicket);
-    }
-    return this.parseClientTickets(ticketsToSend);
-  }
-
-  async sendAuthEmail(ticketData: TicketSendDto) {
-    const ticketsToSend: Array<string> = this.getTicketData(ticketData.clients);
-
-    const dataToEmail: MailDataDto = {
-      from: FROM_EMAIL,
-      to: ticketData.mailTo,
-      subject: SubjectDto.AUTH,
-      text: `Te mandamos tu entrada para el evento. \n
-        FANTOM 9/12 \n
-        Para visualizar la entrada, permiti descargar el contenido bloqueado!!\n
-        ${ticketsToSend}\n
-        <img style="width: 200px; object-fit: cover;"  src="${FlyerLink}" alt="Flyer" />`,
-    };
-    return await sendEmail(dataToEmail);
-  }
-
-  async getToken(loginDto: LoginDto): Promise<SecurityDto> {
-    const { email, password } = loginDto;
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        firebaseClientAuth,
-        email,
-        password,
-      );
-
-      const idToken = await userCredential.user.getIdToken();
-      const refreshToken = userCredential.user.refreshToken;
-
-      return { access_token: idToken, refresh_token: refreshToken };
-    } catch (error: any) {
-      throw new Error(`Failed to get token: ${error.message}`);
-    }
-  }
-  // EN EL NUEVO SHEET QUE CREES TENES QUE PONER EL CLIENT EMAIL DE LA SERVICE ACCOUNT COMO EDITOR PARA QUE FUNCIONE
   async createGoogleClient() {
     const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
@@ -354,28 +174,13 @@ export class TicketService {
     return google.sheets({ version: 'v4', auth: authClient as any });
   }
 
-  async sheetsFileGoogle() {
-    const sheetId = this.sheetId;
-    const tabName = 'solo-lectura';
-    const range = 'A:Z';
-    const googleSheetClient = await this.createGoogleClient();
-
-    const res = await googleSheetClient.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${tabName}!${range}`,
-    });
-
-    return res.data.values;
-  }
-
-  async writeGoogleSheet(resource: any, sheet: any) {
+  async writeGoogleSheet(resource: any, sheet: string) {
     const sheets = await this.createGoogleClient();
-    const sheetId = this.sheetId;
     const range = 'A:Z';
 
     try {
       await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
+        spreadsheetId: this.sheetId,
         range: `${sheet}!${range}`,
         valueInputOption: 'RAW',
         requestBody: {
@@ -385,28 +190,23 @@ export class TicketService {
         },
       });
       console.log('Data successfully written to Google Sheets.');
-      return;
     } catch (error) {
       console.error('Error writing data to Google Sheets:', error);
-      return;
     }
   }
 
-  async clearGoogleSheet(sheet: any) {
+  async clearGoogleSheet(sheet: string) {
     const sheets = await this.createGoogleClient();
-    const sheetId = this.sheetId;
     const range = 'A:Z';
 
     try {
       await sheets.spreadsheets.values.clear({
-        spreadsheetId: sheetId,
+        spreadsheetId: this.sheetId,
         range: `${sheet}!${range}`,
       });
       console.log('Data successfully cleared from Google Sheets.');
-      return;
     } catch (error) {
       console.error('Error clearing data from Google Sheets:', error);
-      return;
     }
   }
 
@@ -507,39 +307,5 @@ export class TicketService {
       console.log('error writing data to Google Sheets:', error);
       return false;
     }
-  }
-
-  async generateExcelTickets(data) {
-
-
-    const wb = xlsx.utils.book_new();
-
-    // Define the worksheet data
-    const wsData = [
-      ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat']
-    ];
-
-    // Map data to match the template
-    data.forEach(item => {
-      wsData.push([
-        item.fullName,
-        '', // Assuming no last name in your example
-        item.email,
-        '', // Assuming no locator in your example
-        1, // Always set cantidad to 1
-        '' // Assuming no seat info in your example
-      ]);
-    });
-
-    // Create a new worksheet with the data
-    const ws = xlsx.utils.aoa_to_sheet(wsData);
-
-    // Add the worksheet to the workbook
-    xlsx.utils.book_append_sheet(wb, ws, 'Sheet 1');
-
-    // Write the workbook to a buffer
-    const buffer = xlsx.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
-    return buffer;
   }
 }
