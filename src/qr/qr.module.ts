@@ -8,6 +8,7 @@ import { Voucher, VoucherSchema } from 'src/schema/voucher.schema';
 import { Prevent, PreventSchema } from 'src/schema/prevent.schema';
 import { Event, EventSchema } from 'src/schema/event.schema';
 import { ConfigModule } from '@nestjs/config';
+import { ComprobanteModule } from 'src/comprobante/comprobante.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ConfigModule } from '@nestjs/config';
       { name: Event.name, schema: EventSchema },
     ]),
     ConfigModule,
+    ComprobanteModule
   ],
   providers: [QrService],
   controllers: [QrController]

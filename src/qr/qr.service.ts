@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import * as qrcode from 'qrcode';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -8,6 +8,7 @@ import { Ticket } from 'src/schema/ticket.schema';
 import { Voucher } from 'src/schema/voucher.schema';
 import { sendEmail } from 'src/helpers/node-mailer';
 import { FROM_EMAIL, SubjectDto } from 'src/data/client.dto';
+import { ComprobanteService } from 'src/comprobante/comprobante.service';
 
 @Injectable()
 export class QrService {
@@ -22,6 +23,8 @@ export class QrService {
     private readonly clientModel: Model<Client>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
+    @Inject(ComprobanteService)
+    private readonly comprobanteService: ComprobanteService,
   ) { }
 
   // New method: Processes all clients in a voucher and sends one email
@@ -49,7 +52,22 @@ export class QrService {
       });
 
       // Generate the QR code.
-      const qrUrl = await this.generateQrCode(ticketData);
+      const qrDataUrl = await this.generateQrCode(ticketData);
+      const buffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      // Create a file-like object that matches Express.Multer.File interface.
+      const fileQr = {
+        buffer,
+        originalname: `qr${ticketClient._id}.png`,
+      } as Express.Multer.File;
+
+      // Upload the QR image to Cloudinary.
+      const uploadResult = await this.comprobanteService.uploadQrImage(fileQr);
+      if (!uploadResult.success) {
+        throw new Error("Failed to upload QR image to Cloudinary");
+      }
+      const qrUrl = uploadResult.fileUrl;
+
+      // Set the uploaded URL on the Ticket.
       ticketClient.url = qrUrl;
 
       // Update the client to reference the new ticket and create the ticket document in parallel.
@@ -183,17 +201,17 @@ export class QrService {
     } else {
       jsonStr = JSON.stringify(data);
     }
-    
+
     const key = jsonStr;
     const now = Date.now();
-  
+
     // If the key exists in the history (cache), return failure.
     if (this.validationCache.has(key)) {
       return { success: false, message: "La entrada ya ha sido utilizada" };
     }
-  
+
     console.log("Validating QR data:", key);
-  
+
     let resultObj: { ticketId: string, client: string };
     try {
       resultObj = JSON.parse(key);
@@ -201,7 +219,7 @@ export class QrService {
       console.error("Error parsing QR data:", err);
       return { success: false, message: "Codigo invalido" };
     }
-  
+
     // Check if the ticket exists and if it has been used.
     const ticket = await this.ticketModel.findOne({
       _id: new Types.ObjectId(resultObj.ticketId)
@@ -214,16 +232,16 @@ export class QrService {
       this.validationCache.set(key, { result: { used: true }, timestamp: now });
       return { success: false, message: "La entrada ya ha sido utilizada" };
     }
-  
+
     // Mark the ticket as used.
     await this.ticketModel.updateOne(
       { _id: new Types.ObjectId(resultObj.ticketId) },
       { $set: { used: true } }
     );
-  
+
     // Cache the successful validation to prevent duplicate validations.
     this.validationCache.set(key, { result: { used: true }, timestamp: now });
-  
+
     return { success: true, message: "Entrada validada correctamente" };
-  }   
+  }
 }

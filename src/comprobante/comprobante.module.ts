@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 
 @Module({
   providers: [ComprobanteService, ConfigService],
-  controllers: [ComprobanteController]
+  controllers: [ComprobanteController],
+  exports: [ComprobanteService]
 })
 export class ComprobanteModule {}

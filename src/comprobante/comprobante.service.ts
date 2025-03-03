@@ -34,4 +34,20 @@ export class ComprobanteService {
       Readable.from(file.buffer).pipe(stream);
     });
   }
+
+  async uploadQrImage(file: Express.Multer.File): Promise<{ success: boolean; fileUrl: string }> {
+    return new Promise((resolve, reject) => {
+      const stream = this.cloudinary.uploader.upload_stream(
+        { resource_type: 'auto', folder: 'Qrs' },
+        (error: any, result: UploadApiResponse) => {
+          if (error) {
+            return resolve({ success: false, fileUrl: '' });
+          }
+          resolve({ success: true, fileUrl: result.url });
+        },
+      );
+
+      Readable.from(file.buffer).pipe(stream);
+    });
+  }
 }
