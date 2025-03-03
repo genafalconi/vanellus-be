@@ -10,10 +10,12 @@ import {
 import { Client } from 'src/schema/client.schema';
 import { Prevent } from 'src/schema/prevent.schema';
 import { Voucher } from 'src/schema/voucher.schema';
+import MercadoPagoConfig, { Preference } from 'mercadopago';
 
 @Injectable()
 export class TicketService {
   private sheetId: string = '1UdKuIPL1AAfgSjzowE9Mg8wUDDtTM6y3TtPXsOIvAsA';
+  private client: MercadoPagoConfig;
 
   constructor(
     @InjectModel(Client.name)
@@ -22,7 +24,9 @@ export class TicketService {
     private readonly preventModel: Model<Prevent>,
     @InjectModel(Voucher.name)
     private readonly voucherModel: Model<Voucher>,
-  ) { }
+  ) {
+    this.client = new MercadoPagoConfig({ accessToken: 'TEST-1257158260921955-030314-f2bfa12212d7a4901e43002e8468b5bc-142770605', options: { timeout: 5000 } });
+  }
 
   async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
     const clientSaved: Array<Client> = [];
@@ -74,6 +78,7 @@ export class TicketService {
       }
 
       // Once the Google Sheet update is successful, save the voucher in the DB.
+      await this.createPaymentLink(newComprobante, prevent);
       return await this.voucherModel.create(newComprobante);
     } else {
       throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
@@ -306,6 +311,36 @@ export class TicketService {
     } catch (error) {
       console.log('error writing data to Google Sheets:', error);
       return false;
+    }
+  }
+
+  async createPaymentLink(voucher: Voucher, prevent: Prevent): Promise<string> {
+    const preference = new Preference(this.client);
+
+    const preferenceData = {
+      items: [
+        {
+          id: voucher._id as string,
+          title: prevent.name,
+          quantity: 1,
+          currency_id: 'ARS',
+          unit_price: voucher.total,
+        },
+      ],
+      back_urls: {
+        success: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/success',
+        failure: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/failure',
+        pending: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/pending',
+      },
+      auto_return: 'approved',
+    };
+
+    try {
+      const response = await preference.create({ body: preferenceData });
+      return response.init_point;
+    } catch (error) {
+      console.error('Error creating payment link:', error);
+      throw new Error('Failed to create payment link');
     }
   }
 }

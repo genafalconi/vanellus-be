@@ -248,35 +248,4 @@ export class QrService {
 
     return { success: true, message: "Entrada validada correctamente" };
   }
-
-
-  async createPaymentLink(ticket: Ticket): Promise<string> {
-    const preference = new Preference(this.client);
-
-    const preferenceData = {
-      items: [
-        {
-          id: ticket._id as string,
-          title: 'Early Birds',
-          quantity: 1,
-          currency_id: 'ARS',
-          unit_price: 21000.0,
-        },
-      ],
-      back_urls: {
-        success: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/success',
-        failure: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/failure',
-        pending: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/pending',
-      },
-      auto_return: 'approved',
-    };
-
-    try {
-      const response = await preference.create({ body: preferenceData });
-      return response.init_point;
-    } catch (error) {
-      console.error('Error creating payment link:', error);
-      throw new Error('Failed to create payment link');
-    }
-  }
 }
