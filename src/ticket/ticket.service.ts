@@ -88,7 +88,14 @@ export class TicketService {
   async getTickets(prevent: string): Promise<Array<Voucher>> {
     return await this.voucherModel
       .find({ prevent: new Types.ObjectId(prevent) })
-      .populate({ path: 'clients', model: 'Client' });
+      .populate({
+        path: 'clients',
+        model: 'Client',
+        populate: {
+          path: 'ticket',
+          model: 'Ticket'
+        }
+      });
   }
 
   async generateExcelFile(): Promise<boolean> {
