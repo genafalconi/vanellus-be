@@ -76,9 +76,9 @@ export class TicketService {
         this.clientModel.deleteMany({ _id: { $in: clientSaved.map(c => c._id) } });
         throw new HttpException('Error updating Google Sheet: ' + error, HttpStatus.INTERNAL_SERVER_ERROR);
       }
-
+      // NOW WORKING YET
+      // await this.createPaymentLink(newComprobante, prevent);
       // Once the Google Sheet update is successful, save the voucher in the DB.
-      await this.createPaymentLink(newComprobante, prevent);
       return await this.voucherModel.create(newComprobante);
     } else {
       throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)

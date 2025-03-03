@@ -9,14 +9,12 @@ import { Voucher } from 'src/schema/voucher.schema';
 import { sendEmail } from 'src/helpers/node-mailer';
 import { FROM_EMAIL, SubjectDto } from 'src/data/client.dto';
 import { ComprobanteService } from 'src/comprobante/comprobante.service';
-import MercadoPagoConfig, { Payment, Preference } from 'mercadopago';
 
 @Injectable()
 export class QrService {
   private validationCache = new Map<string, { result: any; timestamp: number }>();
   private validationHistory = new Map<string, { result: any; timestamp: number }>();
   private cacheTTL = 2000;
-  private client: MercadoPagoConfig;
 
   constructor(
     @InjectModel(Ticket.name)
@@ -27,9 +25,7 @@ export class QrService {
     private readonly voucherModel: Model<Voucher>,
     @Inject(ComprobanteService)
     private readonly comprobanteService: ComprobanteService,
-  ) {
-    this.client = new MercadoPagoConfig({ accessToken: 'TEST-1257158260921955-030314-f2bfa12212d7a4901e43002e8468b5bc-142770605', options: { timeout: 5000 } });
-  }
+  ) {}
 
   // New method: Processes all clients in a voucher and sends one email
   async createQrInvitationForVoucher(payload: CreateTicketsDto): Promise<Client[]> {
@@ -205,17 +201,27 @@ export class QrService {
     } else {
       jsonStr = JSON.stringify(data);
     }
-
+  
     const key = jsonStr;
     const now = Date.now();
-
-    // If the key exists in the history (cache), return failure.
-    if (this.validationCache.has(key)) {
+  
+    // Check the validation history first: if it exists, return an error.
+    if (this.validationHistory.has(key)) {
       return { success: false, message: "La entrada ya ha sido utilizada" };
     }
-
+  
+    // Check the cache: if it exists and is within the TTL, return an error.
+    if (this.validationCache.has(key)) {
+      const cacheEntry = this.validationCache.get(key);
+      if (cacheEntry && (now - cacheEntry.timestamp) < this.cacheTTL) {
+        return { success: false, message: "La entrada ya ha sido utilizada" };
+      } else {
+        // Remove expired cache entries.
+        this.validationCache.delete(key);
+      }
+    }
+  
     console.log("Validating QR data:", key);
-
     let resultObj: { ticketId: string, client: string };
     try {
       resultObj = JSON.parse(key);
@@ -223,29 +229,33 @@ export class QrService {
       console.error("Error parsing QR data:", err);
       return { success: false, message: "Codigo invalido" };
     }
-
-    // Check if the ticket exists and if it has been used.
+  
+    // Query the database for the ticket.
     const ticket = await this.ticketModel.findOne({
       _id: new Types.ObjectId(resultObj.ticketId)
     });
     if (!ticket) {
       return { success: false, message: "No se encontro la entrada" };
     }
+  
+    // If the ticket has already been used...
     if (ticket.used) {
-      // Cache this result to prevent further processing of the same QR.
+      // Cache this result to prevent further processing of the same QR code.
       this.validationCache.set(key, { result: { used: true }, timestamp: now });
+      this.validationHistory.set(key, { result: { used: true }, timestamp: now });
       return { success: false, message: "La entrada ya ha sido utilizada" };
     }
-
-    // Mark the ticket as used.
+  
+    // Mark the ticket as used in the database.
     await this.ticketModel.updateOne(
       { _id: new Types.ObjectId(resultObj.ticketId) },
       { $set: { used: true } }
     );
-
-    // Cache the successful validation to prevent duplicate validations.
+  
+    // Save the result in both the cache and history.
     this.validationCache.set(key, { result: { used: true }, timestamp: now });
-
+    this.validationHistory.set(key, { result: { used: true }, timestamp: now });
+  
     return { success: true, message: "Entrada validada correctamente" };
-  }
+  }  
 }
