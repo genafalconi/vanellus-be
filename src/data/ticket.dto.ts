@@ -16,4 +16,5 @@ export class TicketSendDto {
 export class CreateTicketsDto {
   clients: Array<Client>;
   email: string;
+  voucherId: string;
 }

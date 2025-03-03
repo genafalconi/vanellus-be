@@ -6,4 +6,6 @@ export class EditEventData {
   bar: string;
   venue: string;
   active: boolean;
+  contact: string;
+  phone: string;
 }

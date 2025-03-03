@@ -13,19 +13,25 @@ const transporter = createTransport({
 });
 
 export const sendEmail = async (mailData: MailDataDto) => {
-  const mailOptions = {
-    from: mailData.from,
-    to: mailData.to,
-    subject: mailData.subject,
-    text: mailData.text,
-  };
-
-  await transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log('Email sent: ' + info.response);
-    }
-    return info.response;
-  });
+  try {
+    const mailOptions = {
+      from: mailData.from,
+      to: mailData.to,
+      subject: mailData.subject,
+      text: mailData.text,
+    };
+  
+    await transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Email sent: ' + info.response);
+      }
+      return info.response;
+    });
+    return true;
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
 };

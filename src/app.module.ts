@@ -7,6 +7,7 @@ import { QrModule } from './qr/qr.module';
 import { PreventModule } from './prevent/prevent.module';
 import { EventModule } from './event/event.module';
 import { SecurityModule } from './security/security.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -30,8 +31,25 @@ import { SecurityModule } from './security/security.module';
     PreventModule,
     EventModule,
     SecurityModule,
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000,
+        limit: 2,
+      },
+      {
+        name: 'medium',
+        ttl: 10000,
+        limit: 10
+      },
+      {
+        name: 'long',
+        ttl: 60000,
+        limit: 100
+      }
+    ]),
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }

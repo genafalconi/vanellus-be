@@ -42,7 +42,7 @@ export class MailDataDto {
 export const FROM_EMAIL = 'fantomcsb@gmail.com';
 
 export enum SubjectDto {
-  AUTH = 'Aca esta tu entrada para la FANTOM',
+  AUTH = 'Aca esta tu entrada para la ENVUELTO',
   UNAUTH = 'No cumplis con los requisitos',
 }
 

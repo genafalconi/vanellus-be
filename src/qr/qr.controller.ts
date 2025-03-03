@@ -13,8 +13,8 @@ export class QrController {
   ) {}
 
   @Post('/createQr')
-  async createQrAndEmail(@Query('clientId') clientId: string): Promise<Client> {
-    return await this.qrService.createQrCode(clientId);
+  async createQrAndEmail(@Body() createTickets: CreateTicketsDto): Promise<Client[]> {
+    return await this.qrService.createQrInvitationForVoucher(createTickets);
   }
 
   @Post('/email/unauthorized')

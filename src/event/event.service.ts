@@ -28,7 +28,9 @@ export class EventService {
           hours: eventData.hours,
           bar: eventData.bar,
           venue: eventData.venue,
-          active: eventData.active
+          active: eventData.active,
+          contact: eventData.contact,
+          phone: eventData.phone,
         }
       },
       { new: true }
