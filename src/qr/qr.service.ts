@@ -9,12 +9,14 @@ import { Voucher } from 'src/schema/voucher.schema';
 import { sendEmail } from 'src/helpers/node-mailer';
 import { FROM_EMAIL, SubjectDto } from 'src/data/client.dto';
 import { ComprobanteService } from 'src/comprobante/comprobante.service';
+import MercadoPagoConfig, { Payment, Preference } from 'mercadopago';
 
 @Injectable()
 export class QrService {
   private validationCache = new Map<string, { result: any; timestamp: number }>();
   private validationHistory = new Map<string, { result: any; timestamp: number }>();
   private cacheTTL = 2000;
+  private client: MercadoPagoConfig;
 
   constructor(
     @InjectModel(Ticket.name)
@@ -25,7 +27,9 @@ export class QrService {
     private readonly voucherModel: Model<Voucher>,
     @Inject(ComprobanteService)
     private readonly comprobanteService: ComprobanteService,
-  ) { }
+  ) {
+    this.client = new MercadoPagoConfig({ accessToken: 'TEST-1257158260921955-030314-f2bfa12212d7a4901e43002e8468b5bc-142770605', options: { timeout: 5000 } });
+  }
 
   // New method: Processes all clients in a voucher and sends one email
   async createQrInvitationForVoucher(payload: CreateTicketsDto): Promise<Client[]> {
@@ -243,5 +247,36 @@ export class QrService {
     this.validationCache.set(key, { result: { used: true }, timestamp: now });
 
     return { success: true, message: "Entrada validada correctamente" };
+  }
+
+
+  async createPaymentLink(ticket: Ticket): Promise<string> {
+    const preference = new Preference(this.client);
+
+    const preferenceData = {
+      items: [
+        {
+          id: ticket._id as string,
+          title: 'Early Birds',
+          quantity: 1,
+          currency_id: 'ARS',
+          unit_price: 21000.0,
+        },
+      ],
+      back_urls: {
+        success: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/success',
+        failure: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/failure',
+        pending: 'https://envuelto-be-116049592292.southamerica-east1.run.app/webhook/pending',
+      },
+      auto_return: 'approved',
+    };
+
+    try {
+      const response = await preference.create({ body: preferenceData });
+      return response.init_point;
+    } catch (error) {
+      console.error('Error creating payment link:', error);
+      throw new Error('Failed to create payment link');
+    }
   }
 }

@@ -8,6 +8,7 @@ import { PreventModule } from './prevent/prevent.module';
 import { EventModule } from './event/event.module';
 import { SecurityModule } from './security/security.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
         limit: 100
       }
     ]),
+    WebhookModule,
   ],
   controllers: [],
   providers: [],
