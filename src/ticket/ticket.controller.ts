@@ -19,7 +19,7 @@ export class TicketController {
     private readonly ticketService: TicketService,
   ) { }
   @Post('/create')
-  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto): Promise<Voucher> {
+  async createTicket(@Body() ticketsBuy: BuyTicketsDataDto): Promise<{ success: boolean, message: string }> {
     return await this.ticketService.createTicket(ticketsBuy);
   }
 

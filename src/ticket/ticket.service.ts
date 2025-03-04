@@ -28,7 +28,7 @@ export class TicketService {
     this.client = new MercadoPagoConfig({ accessToken: 'TEST-1257158260921955-030314-f2bfa12212d7a4901e43002e8468b5bc-142770605', options: { timeout: 5000 } });
   }
 
-  async createTicket(ticketsData: BuyTicketsDataDto): Promise<Voucher> {
+  async createTicket(ticketsData: BuyTicketsDataDto): Promise<{ success: boolean, message: string }> {
     const clientSaved: Array<Client> = [];
     const parsedClients: Array<ClientDataDto> = ticketsData.clients;
     const prevent = await this.preventModel.findById(new Types.ObjectId(ticketsData.prevent));
@@ -37,21 +37,21 @@ export class TicketService {
       for (const cli of parsedClients) {
         let existingClient = await this.clientModel.findOne({
           $or: [
-            { fullName: cli.fullName.trim() },
-            { dni: cli.dni },
+            { fullName: cli.fullName.trim().toLowerCase() },
+            { dni: cli.dni }
           ]
         });
 
         if (!existingClient) {
           const newClient = new this.clientModel({
-            fullName: cli.fullName,
+            fullName: cli.fullName.trim().toLowerCase(),
             dni: cli.dni,
             sexo: cli.sexo,
           });
           const saved = await this.clientModel.create(newClient);
           clientSaved.push(saved);
         } else {
-          clientSaved.push(existingClient);
+          return { success: false, message: "El cliente ya existe" };
         }
       }
 
@@ -89,7 +89,8 @@ export class TicketService {
       // NOT WORKING YET
       // await this.createPaymentLink(newComprobante, prevent);
       // Once the Google Sheet update is successful, save the voucher in the DB.
-      return await this.voucherModel.create(newComprobante);
+      await this.voucherModel.create(newComprobante);
+      return { success: true, message: "Cliente creado correctamente" }
     } else {
       throw new HttpException('La preventa esta vencida', HttpStatus.BAD_REQUEST)
     }

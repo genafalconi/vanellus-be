@@ -217,25 +217,8 @@ export class QrService {
       jsonStr = JSON.stringify(data);
     }
 
-    const key = jsonStr;
     const now = Date.now();
-
-    // Check the validation history first: if it exists, return an error.
-    if (this.validationHistory.has(key)) {
-      return { success: false, message: "La entrada ya ha sido utilizada" };
-    }
-
-    // Check the cache: if it exists and is within the TTL, return an error.
-    if (this.validationCache.has(key)) {
-      const cacheEntry = this.validationCache.get(key);
-      if (cacheEntry && (now - cacheEntry.timestamp) < this.cacheTTL) {
-        return { success: false, message: "La entrada ya ha sido utilizada" };
-      } else {
-        // Remove expired cache entries.
-        this.validationCache.delete(key);
-      }
-    }
-
+    const key = jsonStr;
     console.log("Validating QR data:", key);
     let resultObj: { ticketId: string, client: string };
     try {
@@ -245,9 +228,27 @@ export class QrService {
       return { success: false, message: "Codigo invalido" };
     }
 
+    const { ticketId } = resultObj;
+
+    // Check the validation history first: if it exists, return an error.
+    if (this.validationHistory.has(ticketId)) {
+      return { success: false, message: "La entrada ya ha sido utilizada" };
+    }
+
+    // Check the cache: if it exists and is within the TTL, return an error.
+    if (this.validationCache.has(ticketId)) {
+      const cacheEntry = this.validationCache.get(ticketId);
+      if (cacheEntry && (now - cacheEntry.timestamp) < this.cacheTTL) {
+        return { success: false, message: "La entrada ya ha sido utilizada" };
+      } else {
+        // Remove expired cache entries.
+        this.validationCache.delete(ticketId);
+      }
+    }
+
     // Query the database for the ticket.
     const ticket = await this.ticketModel.findOne({
-      _id: new Types.ObjectId(resultObj.ticketId)
+      _id: new Types.ObjectId(ticketId)
     });
     if (!ticket) {
       return { success: false, message: "No se encontro la entrada" };
@@ -256,20 +257,20 @@ export class QrService {
     // If the ticket has already been used...
     if (ticket.used) {
       // Cache this result to prevent further processing of the same QR code.
-      this.validationCache.set(key, { result: { used: true }, timestamp: now });
-      this.validationHistory.set(key, { result: { used: true }, timestamp: now });
+      this.validationCache.set(ticketId, { result: { used: true }, timestamp: now });
+      this.validationHistory.set(ticketId, { result: { used: true }, timestamp: now });
       return { success: false, message: "La entrada ya ha sido utilizada" };
     }
 
     // Mark the ticket as used in the database.
     await this.ticketModel.updateOne(
-      { _id: new Types.ObjectId(resultObj.ticketId) },
+      { _id: new Types.ObjectId(ticketId) },
       { $set: { used: true } }
     );
 
     // Save the result in both the cache and history.
-    this.validationCache.set(key, { result: { used: true }, timestamp: now });
-    this.validationHistory.set(key, { result: { used: true }, timestamp: now });
+    this.validationCache.set(ticketId, { result: { used: true }, timestamp: now });
+    this.validationHistory.set(ticketId, { result: { used: true }, timestamp: now });
 
     return { success: true, message: "Entrada validada correctamente" };
   }

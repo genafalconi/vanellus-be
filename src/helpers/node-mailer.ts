@@ -7,7 +7,7 @@ const transporter = createTransport({
   host: 'smtp-relay.brevo.com',
   port: 587,
   auth: {
-    user: 'fantomcsb@gmail.com',
+    user: process.env.SMTP_MAIL,
     pass: process.env.SMTP_MAILER,
   },
 });
