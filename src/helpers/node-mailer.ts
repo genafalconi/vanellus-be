@@ -4,11 +4,13 @@ import { MailDataDto } from 'src/data/client.dto';
 dotenv.config({ path: '.env' });
 
 const transporter = createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
+  service: "Gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.SMTP_MAIL,
-    pass: process.env.SMTP_MAILER,
+    pass: process.env.SMTP_KEY,
   },
 });
 
@@ -18,9 +20,10 @@ export const sendEmail = async (mailData: MailDataDto) => {
       from: mailData.from,
       to: mailData.to,
       subject: mailData.subject,
-      text: mailData.text,
+      html: mailData.text,
+      attachments: mailData.attachments || []
     };
-
+    
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent: ' + info.response);
     return true;

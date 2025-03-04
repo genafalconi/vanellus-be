@@ -32,6 +32,7 @@ export class QrService {
     try {
       const updatedClients: Client[] = [];
       const qrInfos: string[] = [];
+      const attachments: { filename: string; path: string; cid: string }[] = [];
 
       for (const clientData of payload.clients) {
         const client = await this.clientModel.findById(clientData._id);
@@ -81,11 +82,22 @@ export class QrService {
 
         updatedClients.push(clientUpdate);
 
-        // Accumulate information for the email.
+        // Generate a unique CID for this QR image.
+        const qrCid = `qrImage_${ticketClient._id}`;
+
+        // Push the QR image as an inline attachment.
+        attachments.push({
+          filename: `qr${ticketClient._id}.png`,
+          path: qrUrl, // Cloudinary URL
+          cid: qrCid,
+        });
+
+        // Accumulate information for the email, referencing the inline image via its CID.
         qrInfos.push(`
           <p><strong>Nombre:</strong> ${client.fullName} <br/>
           <strong>DNI:</strong> ${client.dni}</p>
-          <img style="width:150px; object-fit:cover;" src="${qrUrl}" alt="QR Code" />
+          <img style="width:150px; object-fit:cover;" src="cid:${qrCid}" alt="QR Code" /><br/>
+          <a href="${qrUrl}" target="_blank">Si no ves el código QR, haz clic aquí para abrirlo en otra pestaña</a>
         `);
       }
 
@@ -96,6 +108,7 @@ export class QrService {
         <p>Para visualizar la entrada, permite descargar el contenido bloqueado.</p>
         ${qrInfos.join('<hr/>')}
         <br/>
+        <br/>
         <img style="width:200px; object-fit:cover;" src="https://res.cloudinary.com/dxmi0j9yh/image/upload/v1740784174/FlyerLogoCrop_lzzufk.png" alt="Flyer" />
       `;
 
@@ -103,7 +116,8 @@ export class QrService {
         from: FROM_EMAIL,
         to: payload.email,
         subject: SubjectDto.AUTH,
-        text: emailHtml, // using HTML content
+        text: emailHtml,
+        attachments
       };
 
       // Send email
@@ -150,6 +164,7 @@ export class QrService {
         Para visualizar la entrada, permite descargar el contenido bloqueado!!
         Tu código QR: ${qrUrl}
         <img style="width: 200px; object-fit: cover;" src="https://res.cloudinary.com/dxmi0j9yh/image/upload/v1740784174/FlyerLogoCrop_lzzufk.png" alt="Flyer" />`,
+      attachments: []
     };
     return await sendEmail(dataToEmail);
   }
@@ -191,6 +206,7 @@ export class QrService {
         ${ticketsToSend}
               
         <img style="width: 200px; object-fit: cover;" src="YOUR_FLYER_LINK" alt="Flyer" />`,
+      attachments: []
     };
     return await sendEmail(dataToEmail);
   }
@@ -204,6 +220,7 @@ export class QrService {
         FANTOM 9/12
         Te pedimos que te comuniques con <a href="YOUR_WPP_LINK">Mateo</a> para la devolucion de la plata!!
         <img style="width: 200px; object-fit: cover;" src="YOUR_FLYER_LINK" alt="Flyer" />`,
+      attachments: []
     };
     return await sendEmail(dataToEmail);
   }
@@ -280,30 +297,30 @@ export class QrService {
     const foundVoucher = await this.voucherModel.findOne({
       _id: new Types.ObjectId(dto.voucherId)
     }).populate({ path: 'clients', model: 'Client', populate: { path: 'ticket', model: 'Ticket' } });
-  
+
     if (!foundVoucher) {
       return false;
     }
-  
+
     // Get the ticket IDs from clients that actually have a ticket
     const ticketIds = foundVoucher.clients
       .filter(client => client.ticket)
       .map(client => new Types.ObjectId(client.ticket._id as string));
-  
+
     // Delete all tickets with these IDs
     if (ticketIds.length) {
       await this.ticketModel.deleteMany({ _id: { $in: ticketIds } });
     }
-  
+
     // Remove the ticket reference from these clients
     const clientIds = foundVoucher.clients.map(client => new Types.ObjectId(client._id as string));
     await this.clientModel.updateMany(
       { _id: { $in: clientIds } },
       { $set: { ticket: null } }
     );
-  
+
     // Generate new QR invitations
     return await this.createQrInvitationForVoucher(dto);
-  }  
+  }
 
 }

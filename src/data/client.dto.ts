@@ -38,6 +38,13 @@ export class MailDataDto {
   to: string;
   subject: string;
   text: string;
+  attachments: Array<Attachments>;
+}
+
+export class Attachments {
+  filename: string; 
+  path: string; 
+  cid: string;
 }
 
 export const FROM_EMAIL = 'fantomcsb@gmail.com';
