@@ -34,16 +34,14 @@ export class QrService {
       const qrInfos: string[] = [];
 
       for (const clientData of payload.clients) {
-        // Retrieve the client from the database.
         const client = await this.clientModel.findById(clientData._id);
         if (!client) continue;
 
-        // Create a new Ticket (with empty URL initially and not yet sent).
         const ticketClient = new this.ticketModel({
           url: '',
           used: false,
           active: true,
-          sent: false,
+          sent: true,
         });
 
         // Prepare data for QR code.
@@ -276,35 +274,125 @@ export class QrService {
     return { success: true, message: "Entrada validada correctamente" };
   }
 
-  async regenerateQr(regenerateTickets: CreateTicketsDto): Promise<Client[] | boolean> {
+  async regenerateQr(client: Client): Promise<Client | boolean> {
     // 1. Find the clients to regenerate
-    const clientIds = regenerateTickets.clients.map((c) => new Types.ObjectId(c._id as string));
-    const foundClients = await this.clientModel.find({
-      _id: { $in: clientIds },
-    });
-
-    // 2. Gather the ticket IDs from those clients
-    const ticketIds = foundClients.filter((c) => c.ticket).map((c) => new Types.ObjectId(c.ticket._id as string));
+    const foundClient = await this.clientModel.findOne({
+      _id: new Types.ObjectId(client._id as string)
+    }).populate({ path: 'ticket', model: 'Ticket' });
 
     // 3. Delete the tickets for those IDs
-    if (ticketIds.length > 0) {
-      await this.ticketModel.deleteMany({ _id: { $in: ticketIds } });
+    if (foundClient) {
+      await this.ticketModel.deleteOne({ _id: new Types.ObjectId(foundClient.ticket._id as string) });
     }
 
     // (Optional) Remove the ticket reference from the clients
     await this.clientModel.updateMany(
-      { _id: { $in: clientIds } },
+      { _id: foundClient._id },
       { $set: { ticket: null } }
     );
 
-    // 4. Set the voucher’s sent = false
-    if (regenerateTickets.voucherId) {
-      await this.voucherModel.updateOne(
-        { _id: new Types.ObjectId(regenerateTickets.voucherId) },
-        { $set: { sent: false } }
-      );
-    }
-
-    return await this.createQrInvitationForVoucher(regenerateTickets);
+    return await this.createQrInvitationForClient(client);
   }
+
+  async createQrInvitationForClient(client: Client): Promise<Client | boolean> {
+    try {
+      // Retrieve the client from the database.
+      const foundClient = await this.clientModel.findById(client._id);
+      const voucher = await this.voucherModel.findOne({
+        clients: { $in: new Types.ObjectId(client._id as string) }
+      });
+      if (!foundClient) return false;
+
+      // Create a new Ticket (with empty URL initially and not yet sent).
+      const ticketClient = new this.ticketModel({
+        url: '',
+        used: false,
+        active: true,
+        sent: false,
+      });
+
+      // Prepare data for the QR code.
+      const ticketData = JSON.stringify({
+        ticketId: ticketClient._id,
+        client: foundClient.fullName,
+      });
+
+      // Generate the QR code.
+      const qrDataUrl = await this.generateQrCode(ticketData);
+      const buffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      // Create a file-like object matching Express.Multer.File interface.
+      const fileQr = {
+        buffer,
+        originalname: `qr${ticketClient._id}.png`,
+      } as Express.Multer.File;
+
+      // Upload the QR image to Cloudinary.
+      const uploadResult = await this.comprobanteService.uploadQrImage(fileQr);
+      if (!uploadResult.success) {
+        throw new Error("Failed to upload QR image to Cloudinary");
+      }
+      const qrUrl = uploadResult.fileUrl;
+
+      // Set the uploaded URL on the Ticket.
+      ticketClient.url = qrUrl;
+
+      // Update the client to reference the new ticket and create the ticket document in parallel.
+      const [updatedClient] = await Promise.all([
+        this.clientModel.findByIdAndUpdate(
+          foundClient._id,
+          { $set: { ticket: ticketClient._id } },
+          { new: true }
+        ).populate({ path: 'ticket', model: 'Ticket' }),
+        this.ticketModel.create(ticketClient),
+      ]);
+
+      // Prepare the email content using HTML.
+      const emailHtml = `
+        <p>Te mandamos tu entrada para el evento.</p>
+        <p><strong>ENVUELTO</strong></p>
+        <p>Para visualizar la entrada, permite descargar el contenido bloqueado.</p>
+        <p>
+           <strong>Nombre:</strong> ${foundClient.fullName}<br/>
+           <strong>DNI:</strong> ${foundClient.dni}
+        </p>
+        <img style="width:150px; object-fit:cover;" src="${qrUrl}" alt="QR Code" />
+        <br/>
+        <img style="width:200px; object-fit:cover;" src="https://res.cloudinary.com/dxmi0j9yh/image/upload/v1740784174/FlyerLogoCrop_lzzufk.png" alt="Flyer" />
+      `;
+
+      const dataToEmail = {
+        from: FROM_EMAIL,
+        to: voucher.email,
+        subject: SubjectDto.AUTH,
+        text: emailHtml, // sending HTML content
+      };
+
+      // Send the email.
+      const emailResult = await sendEmail(dataToEmail);
+
+      if (emailResult) {
+        // Mark the ticket as sent.
+        await this.ticketModel.updateOne(
+          { _id: ticketClient._id },
+          { $set: { sent: true } }
+        );
+      } else {
+        // Rollback: remove the ticket and clear the client's ticket reference.
+        await Promise.all([
+          this.ticketModel.deleteOne({ _id: ticketClient._id }),
+          this.clientModel.findByIdAndUpdate(
+            foundClient._id,
+            { $set: { ticket: null } }
+          ),
+        ]);
+        return false;
+      }
+
+      return updatedClient;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  }
+
 }
