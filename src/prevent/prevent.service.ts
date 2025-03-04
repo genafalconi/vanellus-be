@@ -25,21 +25,38 @@ export class PreventService {
   }
 
   async getPrevents(): Promise<Array<PreventTotalsDto>> {
+    // 1. Get all prevents
     const prevents = await this.preventModel.find();
     const result: Array<PreventTotalsDto> = [];
-
+  
+    // 2. For each prevent, find its vouchers
     for (const prev of prevents) {
       const vouchers = await this.voucherModel.find({
         prevent: new Types.ObjectId(prev._id as string),
       });
+  
+      // 3. Calculate total clients
       const totalClients = vouchers.reduce(
-        (total, voucher) => total + voucher.clients.length,
+        (sum, voucher) => sum + voucher.clients.length,
         0,
       );
-      result.push({ prevent: prev, totalClients });
+  
+      // 4. Calculate total price (summing the 'total' field of each voucher)
+      const totalPrice = vouchers.reduce(
+        (sum, voucher) => sum + voucher.total,
+        0,
+      );
+  
+      // 5. Push an object with prevent, totalClients, and totalPrice
+      result.push({
+        prevent: prev,
+        totalClients,
+        totalPrice,
+      });
     }
+  
     return result;
-  }
+  }  
 
   async getActivePrevent(): Promise<Prevent> {
     return await this.preventModel.findOne({ active: true });

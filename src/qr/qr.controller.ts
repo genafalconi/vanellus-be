@@ -18,7 +18,7 @@ export class QrController {
   }
 
   @Post('/regenerateQr')
-  async regenerateTicket(@Body() regenerateTickets: Client): Promise<Client | boolean> {
+  async regenerateTicket(@Body() regenerateTickets: CreateTicketsDto): Promise<Client[] | boolean> {
     return await this.qrService.regenerateQr(regenerateTickets);
   }
 

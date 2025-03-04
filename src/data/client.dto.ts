@@ -25,6 +25,7 @@ export class PreventDataDto {
 export class PreventTotalsDto {
   prevent: Prevent;
   totalClients: number;
+  totalPrice: number;
 }
 
 export class TicketCreateDto {
