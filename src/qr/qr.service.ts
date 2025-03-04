@@ -278,13 +278,13 @@ export class QrService {
 
   async regenerateQr(regenerateTickets: CreateTicketsDto): Promise<Client[] | boolean> {
     // 1. Find the clients to regenerate
-    const clientIds = regenerateTickets.clients.map((c) => c._id);
+    const clientIds = regenerateTickets.clients.map((c) => new Types.ObjectId(c._id as string));
     const foundClients = await this.clientModel.find({
       _id: { $in: clientIds },
     });
 
     // 2. Gather the ticket IDs from those clients
-    const ticketIds = foundClients.filter((c) => c.ticket).map((c) => c.ticket._id);
+    const ticketIds = foundClients.filter((c) => c.ticket).map((c) => new Types.ObjectId(c.ticket._id as string));
 
     // 3. Delete the tickets for those IDs
     if (ticketIds.length > 0) {
@@ -300,7 +300,7 @@ export class QrService {
     // 4. Set the voucher’s sent = false
     if (regenerateTickets.voucherId) {
       await this.voucherModel.updateOne(
-        { _id: regenerateTickets.voucherId },
+        { _id: new Types.ObjectId(regenerateTickets.voucherId) },
         { $set: { sent: false } }
       );
     }
