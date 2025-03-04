@@ -110,38 +110,50 @@ export class TicketService {
       .sort({ createdAt: -1 });
   }
 
-  async generateExcelFile(): Promise<boolean> {
-    try {
-      const data = await this.sheetsFileGoogle();
-      const filteredData = data.filter(row => row[6].toLowerCase() === 'si' && row[8].toLowerCase() === 'no');
-
-      const wsData = filteredData.map(item => [
-        item[0], // nombre
-        '',     // apellido
-        item[3].toLowerCase(), // email
-        '',     // localizador
-        1,      // cantidad
-        ''      // seat
-      ]);
-
-      const headers = ['nombre', 'apellido', 'email', 'localizador', 'cantidad', 'seat'];
-      const excelData = [headers, ...wsData];
-      let resource = { values: excelData };
-
-      let sheet = 'enviadas';
-      await this.clearGoogleSheet(sheet);
-      await this.writeGoogleSheet(resource, sheet);
-
-      sheet = 'entradasactualizadas';
-      const updatedData = this.updateSentColumn(data);
-      resource = { values: updatedData };
-      await this.writeGoogleSheet(resource, sheet);
-
-      return true;
-    } catch (error) {
-      console.error('Error generating Excel file:', error);
-      throw error;
-    }
+  async generateExcelFile(prevent: string): Promise<Buffer> {
+    // Query all vouchers filtering by prevent and populate prevent, clients, and ticket
+    const vouchers = await this.voucherModel
+      .find({ prevent: new Types.ObjectId(prevent) })
+      .populate({ path: 'prevent', model: 'Prevent' })
+      .populate({
+        path: 'clients',
+        model: 'Client',
+        populate: { path: 'ticket', model: 'Ticket' },
+      })
+      .exec();
+  
+    // Prepare an array of rows, each representing a client with ticket.sent === true.
+    const data = [];
+  
+    vouchers.forEach(voucher => {
+      voucher.clients.forEach(client => {
+        if (client.ticket && client.ticket.sent) {
+          data.push({
+            Nombre: client.fullName,
+            Dni: client.dni,
+            Sexo: client.sexo,
+            Email: voucher.email,
+          });
+        }
+      });
+    });
+  
+    // Create a worksheet from the JSON data array
+    const worksheet = xlsx.utils.json_to_sheet(data, {
+      header: ['Nombre', 'Dni', 'Sexo', 'Email'],
+    });
+  
+    // Create a new workbook and append the worksheet with a title "Entradas"
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Entradas');
+  
+    // Write the workbook to a Buffer in XLSX format and return it
+    const excelBuffer: Buffer = xlsx.write(workbook, {
+      bookType: 'xlsx',
+      type: 'buffer',
+    });
+  
+    return excelBuffer;
   }
 
   updateSentColumn(data: any[]): any[] {

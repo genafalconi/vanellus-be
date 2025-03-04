@@ -5,12 +5,14 @@ import {
   Inject,
   Post,
   Query,
+  Res,
   UseGuards
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { BuyTicketsDataDto } from 'src/data/client.dto';
 import { Voucher } from 'src/schema/voucher.schema';
 import { FirebaseAuthGuard } from 'src/firebase/firebase.auth.guard';
+import { Response } from 'express';
 
 @Controller('ticket')
 export class TicketController {
@@ -29,9 +31,19 @@ export class TicketController {
     return await this.ticketService.getTickets(prevent);
   }
 
+  @UseGuards(FirebaseAuthGuard)
   @Get('download')
-  async downloadExcel(): Promise<boolean> {
-    return await this.ticketService.generateExcelFile();
+  async downloadExcel(
+    @Res() res: Response,
+    @Query('prevent') prevent: string
+  ) {
+    const excelBuffer = await this.ticketService.generateExcelFile(prevent);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename=entradas.xlsx');
+    res.end(excelBuffer);
   }
 
   @Get('sheets')
