@@ -28,3 +28,4 @@ export class Voucher extends Document {
 }
 
 export const VoucherSchema = SchemaFactory.createForClass(Voucher);
+VoucherSchema.set('timestamps', true);

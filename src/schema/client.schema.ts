@@ -18,3 +18,4 @@ export class Client extends Document {
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);
+ClientSchema.set('timestamps', true);

@@ -8,4 +8,6 @@ export class EditEventData {
   active: boolean;
   contact: string;
   phone: string;
+  aliasHom: string;
+  aliasMuj: string;
 }

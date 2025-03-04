@@ -17,3 +17,4 @@ export class Ticket extends Document {
 }
 
 export const TicketSchema = SchemaFactory.createForClass(Ticket);
+TicketSchema.set('timestamps', true);

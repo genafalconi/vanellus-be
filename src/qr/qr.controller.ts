@@ -10,11 +10,16 @@ export class QrController {
   constructor(
     @Inject(QrService)
     private readonly qrService: QrService
-  ) {}
+  ) { }
 
   @Post('/createQr')
-  async createQrAndEmail(@Body() createTickets: CreateTicketsDto): Promise<Client[]> {
+  async createQrAndEmail(@Body() createTickets: CreateTicketsDto): Promise<Client[] | boolean> {
     return await this.qrService.createQrInvitationForVoucher(createTickets);
+  }
+
+  @Post('/regenerateQr')
+  async regenerateTicket(@Body() regenerateTickets: CreateTicketsDto): Promise<Client[] | boolean> {
+    return await this.qrService.regenerateQr(regenerateTickets);
   }
 
   @Post('/email/unauthorized')

@@ -31,6 +31,12 @@ export class Event extends Document {
   @Prop({ required: true })
   phone: string;
 
+  @Prop({ required: true })
+  aliasHom: string;
+
+  @Prop({ required: true })
+  aliasMuj: string;
+
   @Prop([{ type: Types.ObjectId, ref: 'Prevent', required: true }]) 
   prevents: Prevent[];
 }

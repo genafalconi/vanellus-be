@@ -31,6 +31,8 @@ export class EventService {
           active: eventData.active,
           contact: eventData.contact,
           phone: eventData.phone,
+          aliasHom: eventData.aliasHom,
+          aliasMuj: eventData.aliasMuj,
         }
       },
       { new: true }

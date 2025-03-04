@@ -35,14 +35,24 @@ export class TicketService {
 
     if (prevent.active) {
       for (const cli of parsedClients) {
-        const newClient = new this.clientModel({
-          fullName: cli.fullName,
-          dni: cli.dni,
-          sexo: cli.sexo
+        let existingClient = await this.clientModel.findOne({
+          $or: [
+            { fullName: cli.fullName.trim() },
+            { dni: cli.dni },
+          ]
         });
 
-        const saved = await this.clientModel.create(newClient);
-        clientSaved.push(saved);
+        if (!existingClient) {
+          const newClient = new this.clientModel({
+            fullName: cli.fullName,
+            dni: cli.dni,
+            sexo: cli.sexo,
+          });
+          const saved = await this.clientModel.create(newClient);
+          clientSaved.push(saved);
+        } else {
+          clientSaved.push(existingClient);
+        }
       }
 
       const newComprobante = new this.voucherModel({
@@ -76,7 +86,7 @@ export class TicketService {
         this.clientModel.deleteMany({ _id: { $in: clientSaved.map(c => c._id) } });
         throw new HttpException('Error updating Google Sheet: ' + error, HttpStatus.INTERNAL_SERVER_ERROR);
       }
-      // NOW WORKING YET
+      // NOT WORKING YET
       // await this.createPaymentLink(newComprobante, prevent);
       // Once the Google Sheet update is successful, save the voucher in the DB.
       return await this.voucherModel.create(newComprobante);
@@ -95,7 +105,8 @@ export class TicketService {
           path: 'ticket',
           model: 'Ticket'
         }
-      });
+      })
+      .sort({ createdAt: -1 });
   }
 
   async generateExcelFile(): Promise<boolean> {
@@ -231,13 +242,15 @@ export class TicketService {
 
       const existingEntries = data.map(row => ({
         fullName: row[0]?.trim()?.toLowerCase(),
+        dni: row[1]?.trim()?.toLowerCase(),
         email: row[3]?.trim()?.toLowerCase()
       }));
 
       const newEntryExists = resource.values.some(newEntry => {
-        const [fullName, , , email] = newEntry;
+        const [fullName, dni, , email] = newEntry;
         return existingEntries.some(entry =>
-          entry.fullName === fullName?.trim()?.toLowerCase() &&
+          (entry.fullName === fullName?.trim()?.toLowerCase() ||
+            entry.dni === dni?.trim()?.toLowerCase()) &&
           entry.email === email?.trim()?.toLowerCase()
         );
       });
@@ -270,7 +283,7 @@ export class TicketService {
                       startRowIndex: startRow,
                       endRowIndex: endRow,
                       startColumnIndex: 0,
-                      endColumnIndex: 8,
+                      endColumnIndex: 9,
                     },
                     cell: {
                       userEnteredFormat: {
